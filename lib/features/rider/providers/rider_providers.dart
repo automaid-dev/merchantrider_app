@@ -1,0 +1,57 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/auth/auth_providers.dart';
+import '../../../core/models/assign_job_model.dart';
+import '../data/rider_repository.dart';
+
+final riderRepositoryProvider = Provider<RiderRepository>((ref) {
+  return RiderRepository(ref.read(apiClientProvider));
+});
+
+class RiderHomeState {
+  final bool isDuty;
+  final List<AssignJob> today;
+  final List<AssignJob> incoming;
+
+  const RiderHomeState({required this.isDuty, required this.today, required this.incoming});
+}
+
+final riderHomeProvider =
+    AsyncNotifierProvider.autoDispose<RiderHomeNotifier, RiderHomeState>(RiderHomeNotifier.new);
+
+class RiderHomeNotifier extends AutoDisposeAsyncNotifier<RiderHomeState> {
+  @override
+  Future<RiderHomeState> build() async {
+    final result = await ref.read(riderRepositoryProvider).home();
+    return RiderHomeState(isDuty: result.isDuty, today: result.today, incoming: result.incoming);
+  }
+
+  Future<void> toggleDuty(bool isDuty) async {
+    await ref.read(riderRepositoryProvider).updateDuty(isDuty);
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<void> acceptJob(int assignId) async {
+    await ref.read(riderRepositoryProvider).acceptOrder(assignId);
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<void> confirmPickup(int assignId) async {
+    await ref.read(riderRepositoryProvider).pickupOrder(assignId);
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<void> confirmPickupFromOutlet(int assignId) async {
+    await ref.read(riderRepositoryProvider).pickupWashOutletConfirm(assignId);
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<void> confirmDelivery(int assignId) async {
+    await ref.read(riderRepositoryProvider).deliveryConfirm(assignId);
+    ref.invalidateSelf();
+    await future;
+  }
+}
