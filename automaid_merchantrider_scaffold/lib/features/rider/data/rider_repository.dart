@@ -135,14 +135,19 @@ class RiderRepository {
 
   /// Step: confirm delivery to customer (code 15) — also calculates and
   /// credits rider/merchant commission on the backend.
-  Future<Map<String, dynamic>> deliveryConfirm(int assignId) async {
-    final json = await _api.post(ApiEndpoints.riderOrderDelivery, data: {'assign_id': assignId});
+  /// Final delivery to customer — requires a photo, same as every other
+  /// handoff step (backend validates `image` as required now).
+  Future<Map<String, dynamic>> deliveryConfirm(int assignId, {required String photoPath, String? remark}) async {
+    final json = await _api.post(
+      ApiEndpoints.riderOrderDelivery,
+      data: FormData.fromMap({
+        'assign_id': assignId,
+        if (remark != null) 'remark': remark,
+        'image': await MultipartFile.fromFile(photoPath),
+      }),
+    );
     return unwrapData(json, fallback: 'Could not confirm delivery.')['assign'] as Map<String, dynamic>;
   }
-
-  // NOTE: deliveryUpload takes up to 3 proof-of-delivery photos
-  // (image1/image2/image3) — multipart. Wire up with dio's FormData +
-  // MultipartFile.fromFile for the delivery-proof screen.
 
   Future<List<Map<String, dynamic>>> scanQrcode({required String qrcode, required String type}) async {
     final json = await _api.post(ApiEndpoints.riderScanQrcode, data: {
@@ -160,6 +165,21 @@ class RiderRepository {
     // Response key differs: 'order' when is_complete, 'assign_job' otherwise.
     final data = unwrapData(json, fallback: 'Could not load order.');
     return (data['order'] ?? data['assign_job']) as Map<String, dynamic>;
+  }
+
+  /// Every activity this rider has been involved in, newest first —
+  /// including jobs that were cancelled by an admin, which previously
+  /// just vanished from the dashboard with no explanation at all.
+  /// Every order this rider has ever accepted, at any stage — active,
+  /// completed, or cancelled. Previously relied on a sparse Activity
+  /// log that only got a row at final delivery or admin cancellation,
+  /// so an order still in progress never showed up here at all.
+  Future<List<Map<String, dynamic>>> activityHistory() async {
+    final json = await _api.post(ApiEndpoints.riderActivityHistory);
+    return (unwrapData(json, fallback: 'Could not load order history.')['orders']
+            as List<dynamic>? ??
+        [])
+        .cast<Map<String, dynamic>>();
   }
 
   // NOTE: reApplyUpdate is a large multipart form (IC front/back, license

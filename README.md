@@ -31,6 +31,48 @@ update `pubspec.yaml`'s `name:` field to match — this codebase uses
 relative imports throughout, so the pubspec name doesn't affect whether
 it compiles.)
 
+## Google Maps setup — REQUIRED, and very likely why the pin-map screen crashes
+
+`google_maps_flutter` is used on the address-pinning step in both rider
+and merchant registration (`MapPickerScreen`). It needs an API key wired
+into each platform's native config — this can't be done from inside
+`lib/`, so it wasn't included when I built the registration screens, and
+this project's setup steps were never written down anywhere. **A
+missing/invalid key here doesn't fail gracefully — it crashes the native
+Android map view**, which is exactly what "blank screen then the app
+restarts" looks like. This is the first thing to check.
+
+Do this after scaffolding:
+
+**Android** — in `android/app/src/main/AndroidManifest.xml`, inside the
+`<application>` tag:
+```xml
+<meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="YOUR_GOOGLE_MAPS_API_KEY"/>
+```
+Also add the location permission (needed for the "use current location"
+button):
+```xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+```
+
+**iOS** — in `ios/Runner/AppDelegate.swift`, add before `return super...`:
+```swift
+GMSServices.provideAPIKey("YOUR_GOOGLE_MAPS_API_KEY")
+```
+And in `ios/Runner/Info.plist`, add a location-usage description:
+```xml
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Automaid Partner needs your location to pin your address accurately.</string>
+```
+
+Get an API key from the [Google Cloud Console](https://console.cloud.google.com/google/maps-apis)
+with "Maps SDK for Android" and "Maps SDK for iOS" enabled, and billing
+active on that project — this is separate from any key you may already
+have for the customer app (a key can be reused across projects, but
+billing/quota is shared, so keep that in mind if usage is high).
+
 ## App display name
 
 Currently set to "Automaid Partner" in `lib/main.dart`. After scaffolding,
@@ -118,18 +160,86 @@ account logging in here gets logged straight back out (see the router's
 redirect logic) rather than shown a broken screen, since this app has no
 customer-facing screens.
 
+## Merchant home module (new)
+
+Built out following the exact same pattern as the rider module — repository
+wrapping the confirmed-working `/merchant/*` routes, Riverpod providers,
+then screens:
+
+- **Home** — duty toggle, Today/Incoming job tabs, one contextual action
+  button per job matching its exact status code (see `MerchantStatusCode`
+  in `lib/core/models/assign_job_model.dart` for the full code → action
+  mapping, traced from `OrderStatus.php` and the three merchant
+  controllers). Codes 21/22/23 are actionable (accept → receive bag →
+  mark wash complete); 24/25/26 are informational.
+- **Scan** — camera QR scan of a bag to see the customer's bookings for
+  today, same pattern as the rider scan screen.
+- **Order detail** — simpler than the rider version since there's no
+  delivery-proof-photo step on the merchant side.
+- **Profile** — read-only wallet balance + recent activity.
+
+### A real bug found and fixed while building this
+
+Tracing the merchant endpoints, I found the exact same silent-failure bug
+that was fixed in the customer app a while back was **also present in
+both this app's rider and merchant repositories** — `ApiClient` never
+checked the backend's `status: false` flag, so any method that indexed
+straight into `json['data']['x']` on a business-logic failure (e.g. the
+backend's own "Rider not pickup yet." message when bag-receiving too
+early) would throw an uncatchable Dart type error instead of a visible
+message. Added the same `unwrapData()` fix
+(`lib/core/api/api_data_helper.dart`) to **both** repositories — this
+wasn't just a merchant-specific fix, it makes the whole app more honest
+about backend errors going forward.
+
+### Known gap: city selection
+
+`POST /merchant/home/city` is routed to `HomeController::selectCity`,
+but that method doesn't actually exist in the controller as shipped on
+the server — calling it would 500. Not wired up in the app until the
+backend implements it (documented in `merchant_repository.dart`).
+
+## Profile editing (new) — rider & merchant
+
+Both read-only profile screens now have a working edit icon in the app
+bar, opening `RiderProfileEditScreen` / `MerchantProfileEditScreen` —
+matches `RiderProfileController::profileUpdate` /
+`Api/Merchant/ProfileController::profileUpdate` exactly (name, mobile,
+IC, address with the same map-pin picker used everywhere else, bank
+info, avatar upload, plus emergency contact for riders / equipment +
+company info for merchants). Pre-fills from the data already loaded on
+the profile screen, so opening Edit doesn't need a second network call.
+
+## Photo + remark capture at handoff steps (new)
+
+Matches the booking flow spec's requirement to photograph/annotate each
+handoff, replacing reliance on QR alone. Both apps share one bottom
+sheet (`lib/core/widgets/photo_remark_capture.dart`) — camera capture +
+optional note — shown before confirming:
+
+- **Rider**: pickup from customer / delivered to outlet (one combined
+  action, matching how this backend already structures that step),
+  and pickup from outlet.
+- **Merchant**: bag received (wash starting), and wash complete.
+
+Both are optional — dismissing the sheet cancels the action entirely
+(no accidental "confirm with no photo"), but tapping "Confirm without
+photo" explicitly skips it if there's nothing worth capturing. Final
+delivery-to-customer already had its own dedicated multi-photo flow
+before this patch (`RiderOrderDetailScreen`) — untouched.
+
+Needs the matching backend patch (`automaid_backend_step_photos.zip`)
+deployed first — these calls send `image`/`remark` as optional
+multipart fields the backend now accepts on all 4 endpoints.
+
 ## Known gaps (carried over from the single-app version)
 
-- Rider profile editing and the rejected-rider re-apply flow need large
-  multipart forms — documented with exact field lists in
-  `lib/features/rider/data/rider_repository.dart`.
+- The rejected-rider and rejected-merchant re-apply flows still need
+  their own multipart forms — documented with exact field lists in
+  `lib/features/rider/data/rider_repository.dart` and
+  `lib/features/merchant/data/merchant_repository.dart`.
 - No push notification listener yet (FCM/OneSignal) — job lists refresh
   on pull-to-refresh or after an action only.
-- **Merchant home module is still a stub** — `merchant_home_screen.dart`
-  is a placeholder only. Registration now works end-to-end for merchants,
-  but there's no bag-receive/wash-complete/scan flow yet — same pattern
-  as the rider module (repository → providers → screens) whenever you're
-  ready for it.
 - App icon generation needs `dart run flutter_launcher_icons` locally
   (can't run Flutter tooling from here) — see the Branding section above
   in the customer app's README for the exact steps; same command applies

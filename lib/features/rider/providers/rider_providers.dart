@@ -37,14 +37,14 @@ class RiderHomeNotifier extends AutoDisposeAsyncNotifier<RiderHomeState> {
     await future;
   }
 
-  Future<void> confirmPickup(int assignId) async {
-    await ref.read(riderRepositoryProvider).pickupOrder(assignId);
+  Future<void> confirmPickup(int assignId, {String? photoPath, String? remark}) async {
+    await ref.read(riderRepositoryProvider).pickupOrder(assignId, photoPath: photoPath, remark: remark);
     ref.invalidateSelf();
     await future;
   }
 
-  Future<void> confirmPickupFromOutlet(int assignId) async {
-    await ref.read(riderRepositoryProvider).pickupWashOutletConfirm(assignId);
+  Future<void> confirmPickupFromOutlet(int assignId, {String? photoPath, String? remark}) async {
+    await ref.read(riderRepositoryProvider).pickupWashOutletConfirm(assignId, photoPath: photoPath, remark: remark);
     ref.invalidateSelf();
     await future;
   }
@@ -55,3 +55,10 @@ class RiderHomeNotifier extends AutoDisposeAsyncNotifier<RiderHomeState> {
     await future;
   }
 }
+
+/// Activity/job history — separate from riderHomeProvider (today/incoming
+/// active jobs only) since this covers everything including cancelled
+/// and completed jobs, which the home dashboard was never meant to show.
+final riderActivityHistoryProvider = FutureProvider.autoDispose((ref) {
+  return ref.read(riderRepositoryProvider).activityHistory();
+});

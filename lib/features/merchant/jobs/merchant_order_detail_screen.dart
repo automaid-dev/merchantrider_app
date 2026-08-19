@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
-import '../../../core/widgets/order_status_timeline.dart';
 import '../providers/merchant_providers.dart';
 
 /// Full order detail for a merchant's job — wraps POST /merchant/order/detail.
@@ -62,12 +61,6 @@ class _MerchantOrderDetailScreenState extends ConsumerState<MerchantOrderDetailS
                       Text('Order ID: ${_data?['order_id'] ?? _data?['id'] ?? '-'}'),
                       Text('Status code: ${_data?['code'] ?? '-'}'),
                       if (_data?['quantity'] != null) Text('Bags: ${_data?['quantity']}'),
-                      if (widget.isComplete && _data?['merchant_order_statuses'] != null) ...[
-                        const Divider(height: 32),
-                        Text('Order status', style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 12),
-                        OrderStatusTimeline(statuses: _data!['merchant_order_statuses'] as List<dynamic>),
-                      ],
                     ],
                   ),
                 ),

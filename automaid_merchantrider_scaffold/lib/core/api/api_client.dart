@@ -63,9 +63,13 @@ class ApiClient {
   /// including reads — so `post` is the primary method used throughout the app.
   /// [data] accepts a Map (most calls) or a Dio FormData (multipart file
   /// uploads — registration document photos, delivery proof, etc.).
-  Future<Map<String, dynamic>> post(String path, {dynamic data}) async {
+  Future<Map<String, dynamic>> post(String path, {dynamic data, Duration? timeout}) async {
     try {
-      final response = await _dio.post(path, data: data);
+      final response = await _dio.post(
+        path,
+        data: data,
+        options: timeout != null ? Options(sendTimeout: timeout, receiveTimeout: timeout) : null,
+      );
       return _unwrap(response);
     } on DioException catch (e) {
       throw _toApiException(e);
@@ -93,7 +97,13 @@ class ApiClient {
     Map<String, dynamic>? errors;
 
     if (data is Map<String, dynamic>) {
-      message = data['message']?.toString() ?? message;
+      // Most endpoints in this backend return {'message': '...'}, but
+      // AuthController::login() specifically returns {'error':
+      // 'Unauthorized'} for bad credentials (a genuine 401, unlike
+      // everything else which uses a 200 with status:false) — without
+      // this fallback, a wrong email/password showed Dio's raw internal
+      // error text instead of a real message.
+      message = data['message']?.toString() ?? data['error']?.toString() ?? message;
       if (data['errors'] is Map<String, dynamic>) {
         errors = data['errors'] as Map<String, dynamic>;
       }

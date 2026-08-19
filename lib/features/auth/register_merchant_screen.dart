@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_providers.dart';
+import '../../core/widgets/form_section_card.dart';
 import 'widgets/map_picker_screen.dart';
 
 /// Full merchant registration — matches MerchantController::register's
@@ -52,7 +53,13 @@ class _RegisterMerchantScreenState extends ConsumerState<RegisterMerchantScreen>
   final _companyName = TextEditingController();
   final _ssmNo = TextEditingController();
   String? _businessOption;
-  static const _businessOptions = ['Corporate', 'Sole Proprietor', 'Partnership'];
+  // Confirmed from the actual backend column (business_option:
+  // 1=Corporate, 2=JV, 3=Franchise) — the earlier guess of
+  // 'Sole Proprietor'/'Partnership' was wrong (the flow doc only ever
+  // showed one option selected, so the full set had to be inferred,
+  // and that inference turned out incorrect — it crashed at
+  // registration since the backend didn't recognize those labels).
+  static const _businessOptions = ['Corporate', 'JV', 'Franchise'];
 
   // Bank (optional)
   String? _bankName;
@@ -205,12 +212,19 @@ class _RegisterMerchantScreenState extends ConsumerState<RegisterMerchantScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Step ${_step + 1}/3')),
-      body: IndexedStack(
-        index: _step,
+      body: Column(
         children: [
-          _buildFormStep(),
-          _buildDocumentsStep(),
-          _buildOtpStep(),
+          StepProgressBar(currentStep: _step, totalSteps: 3),
+          Expanded(
+            child: IndexedStack(
+              index: _step,
+              children: [
+                _buildFormStep(),
+                _buildDocumentsStep(),
+                _buildOtpStep(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -222,201 +236,232 @@ class _RegisterMerchantScreenState extends ConsumerState<RegisterMerchantScreen>
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Register as ${widget.typeMerchant == 'automaid_outlet' ? 'Auto Maid Outlet' : 'Outlet Partner'}',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Register as ${widget.typeMerchant == 'automaid_outlet' ? 'Auto Maid Outlet' : 'Outlet Partner'}',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 12),
-          const Text('PERSONAL INFORMATION', style: TextStyle(color: Colors.grey, fontSize: 12)),
-          TextFormField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Full Name *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-          ),
-          TextFormField(
-            controller: _email,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(labelText: 'Email *'),
-            validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
-          ),
-          TextFormField(
-            controller: _mobile,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Mobile phone *', prefixText: '+60 '),
-            validator: (v) {
-              final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
-              return digits.length < 9 ? 'Enter a valid mobile number' : null;
-            },
-          ),
-          DropdownButtonFormField<String>(
-            value: _idType,
-            decoration: const InputDecoration(labelText: 'ID Type *'),
-            items: _idTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-            onChanged: (v) => setState(() => _idType = v),
-            validator: (v) => v == null ? 'Required' : null,
-          ),
-          TextFormField(
-            controller: _icno,
-            decoration: InputDecoration(labelText: '${_idType ?? "ID"} Number *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-          ),
-          const SizedBox(height: 16),
-          const Text('OUTLET ADDRESS', style: TextStyle(color: Colors.grey, fontSize: 12)),
-          TextFormField(
-            controller: _addressLine1,
-            decoration: const InputDecoration(labelText: 'Address line 1 *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-          ),
-          TextFormField(
-            controller: _addressLine2,
-            decoration: const InputDecoration(labelText: 'Address line 2'),
-          ),
-          TextFormField(
-            controller: _postcode,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Postcode *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-          ),
-          TextFormField(
-            controller: _city,
-            decoration: const InputDecoration(labelText: 'City *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-          ),
-          Consumer(
-            builder: (context, ref, _) {
-              final statesAsync = ref.watch(statesProvider);
-              return statesAsync.when(
-                data: (states) => DropdownButtonFormField<String>(
-                  value: _selectedState,
-                  decoration: const InputDecoration(labelText: 'State *'),
-                  items: states.map((s) => DropdownMenuItem(value: s.name, child: Text(s.name))).toList(),
-                  onChanged: (v) => setState(() => _selectedState = v),
-                  validator: (v) => v == null ? 'Required' : null,
-                ),
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: LinearProgressIndicator(),
-                ),
-                error: (e, _) => Text('Could not load states: $e'),
-              );
-            },
-          ),
-          TextFormField(
-            controller: _country,
-            decoration: const InputDecoration(labelText: 'Country *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _pickLocation,
-            icon: const Icon(Icons.map_outlined),
-            label: Text(_pinnedLocation == null ? 'Pin outlet location on map' : 'Location pinned ✓ (tap to adjust)'),
-          ),
-          const SizedBox(height: 16),
-          const Text('LAUNDRY EQUIPMENT DETAILS', style: TextStyle(color: Colors.grey, fontSize: 12)),
-          Row(
+          FormSectionCard(
+            icon: Icons.person_outline,
+            title: 'Personal Information',
             children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _washerQuantity,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Washer quantity *'),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                ),
+              TextFormField(
+                controller: _name,
+                decoration: const InputDecoration(labelText: 'Full Name *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _dryerQuantity,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Dryer quantity *'),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                ),
+              TextFormField(
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email *'),
+                validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+              ),
+              TextFormField(
+                controller: _mobile,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Mobile phone *', prefixText: '+60 '),
+                validator: (v) {
+                  final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                  return digits.length < 9 ? 'Enter a valid mobile number' : null;
+                },
+              ),
+              DropdownButtonFormField<String>(
+                value: _idType,
+                decoration: const InputDecoration(labelText: 'ID Type *'),
+                items: _idTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: (v) => setState(() => _idType = v),
+                validator: (v) => v == null ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _icno,
+                decoration: InputDecoration(labelText: '${_idType ?? "ID"} Number *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text('Service categories *'),
-          Wrap(
-            children: _serviceCategoryOptions.map((c) {
-              final selected = _serviceCategories.contains(c);
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: FilterChip(
-                  label: Text(c),
-                  selected: selected,
-                  onSelected: (v) => setState(() {
-                    if (v) {
-                      _serviceCategories.add(c);
-                    } else {
-                      _serviceCategories.remove(c);
-                    }
-                  }),
-                ),
-              );
-            }).toList(),
+          FormSectionCard(
+            icon: Icons.storefront_outlined,
+            title: 'Outlet Address',
+            children: [
+              TextFormField(
+                controller: _addressLine1,
+                decoration: const InputDecoration(labelText: 'Address line 1 *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _addressLine2,
+                decoration: const InputDecoration(labelText: 'Address line 2'),
+              ),
+              TextFormField(
+                controller: _postcode,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Postcode *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _city,
+                decoration: const InputDecoration(labelText: 'City *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final statesAsync = ref.watch(statesProvider);
+                  return statesAsync.when(
+                    data: (states) => DropdownButtonFormField<String>(
+                      value: _selectedState,
+                      decoration: const InputDecoration(labelText: 'State *'),
+                      items: states.map((s) => DropdownMenuItem(value: s.name, child: Text(s.name))).toList(),
+                      onChanged: (v) => setState(() => _selectedState = v),
+                      validator: (v) => v == null ? 'Required' : null,
+                    ),
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: LinearProgressIndicator(),
+                    ),
+                    error: (e, _) => Text('Could not load states: $e'),
+                  );
+                },
+              ),
+              TextFormField(
+                controller: _country,
+                decoration: const InputDecoration(labelText: 'Country *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+              OutlinedButton.icon(
+                onPressed: _pickLocation,
+                icon: Icon(_pinnedLocation == null ? Icons.map_outlined : Icons.check_circle, size: 18),
+                label: Text(_pinnedLocation == null ? 'Pin outlet location on map' : 'Location pinned — tap to adjust'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text('COMPANY INFORMATION', style: TextStyle(color: Colors.grey, fontSize: 12)),
-          TextFormField(
-            controller: _companyName,
-            decoration: const InputDecoration(labelText: 'Company name *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+          FormSectionCard(
+            icon: Icons.local_laundry_service_outlined,
+            title: 'Laundry Equipment Details',
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _washerQuantity,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Washer quantity *'),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _dryerQuantity,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Dryer quantity *'),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Service categories *'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: _serviceCategoryOptions.map((c) {
+                      final selected = _serviceCategories.contains(c);
+                      return FilterChip(
+                        label: Text(c),
+                        selected: selected,
+                        onSelected: (v) => setState(() {
+                          if (v) {
+                            _serviceCategories.add(c);
+                          } else {
+                            _serviceCategories.remove(c);
+                          }
+                        }),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ],
           ),
-          TextFormField(
-            controller: _ssmNo,
-            decoration: const InputDecoration(labelText: 'SSM number *'),
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+          FormSectionCard(
+            icon: Icons.business_outlined,
+            title: 'Company Information',
+            children: [
+              TextFormField(
+                controller: _companyName,
+                decoration: const InputDecoration(labelText: 'Company name *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _ssmNo,
+                decoration: const InputDecoration(labelText: 'SSM number *'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+              DropdownButtonFormField<String>(
+                value: _businessOption,
+                decoration: const InputDecoration(labelText: 'Business options *'),
+                items: _businessOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+                onChanged: (v) => setState(() => _businessOption = v),
+                validator: (v) => v == null ? 'Required' : null,
+              ),
+            ],
           ),
-          DropdownButtonFormField<String>(
-            value: _businessOption,
-            decoration: const InputDecoration(labelText: 'Business options *'),
-            items: _businessOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
-            onChanged: (v) => setState(() => _businessOption = v),
-            validator: (v) => v == null ? 'Required' : null,
+          FormSectionCard(
+            icon: Icons.account_balance_outlined,
+            title: 'Bank Information (optional)',
+            children: [
+              Consumer(
+                builder: (context, ref, _) {
+                  final banksAsync = ref.watch(banksProvider);
+                  return banksAsync.when(
+                    data: (banks) => DropdownButtonFormField<String>(
+                      value: _bankName,
+                      decoration: const InputDecoration(labelText: 'Bank name'),
+                      items: banks.map((b) => DropdownMenuItem(value: b.name, child: Text(b.name))).toList(),
+                      onChanged: (v) => setState(() => _bankName = v),
+                    ),
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: LinearProgressIndicator(),
+                    ),
+                    error: (e, _) => Text('Could not load banks: $e'),
+                  );
+                },
+              ),
+              TextFormField(
+                controller: _bankNo,
+                decoration: const InputDecoration(labelText: 'Bank account number'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text('BANK INFORMATION (optional)', style: TextStyle(color: Colors.grey, fontSize: 12)),
-          Consumer(
-            builder: (context, ref, _) {
-              final banksAsync = ref.watch(banksProvider);
-              return banksAsync.when(
-                data: (banks) => DropdownButtonFormField<String>(
-                  value: _bankName,
-                  decoration: const InputDecoration(labelText: 'Bank name'),
-                  items: banks.map((b) => DropdownMenuItem(value: b.name, child: Text(b.name))).toList(),
-                  onChanged: (v) => setState(() => _bankName = v),
-                ),
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: LinearProgressIndicator(),
-                ),
-                error: (e, _) => Text('Could not load banks: $e'),
-              );
-            },
-          ),
-          TextFormField(
-            controller: _bankNo,
-            decoration: const InputDecoration(labelText: 'Bank account number'),
-          ),
-          const SizedBox(height: 16),
-          const Text('CREATE PASSWORD', style: TextStyle(color: Colors.grey, fontSize: 12)),
-          TextFormField(
-            controller: _password,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password *'),
-            validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
-          ),
-          TextFormField(
-            controller: _confirmPassword,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Confirm password *'),
-            validator: (v) => v != _password.text ? 'Passwords do not match' : null,
+          FormSectionCard(
+            icon: Icons.lock_outline,
+            title: 'Create Password',
+            children: [
+              TextFormField(
+                controller: _password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Password *'),
+                validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
+              ),
+              TextFormField(
+                controller: _confirmPassword,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Confirm password *'),
+                validator: (v) => v != _password.text ? 'Passwords do not match' : null,
+              ),
+            ],
           ),
           if (_error != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
             Text(_error!, style: const TextStyle(color: Colors.red)),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
           FilledButton(onPressed: _submitForm, child: const Text('Next')),
+          const SizedBox(height: 16),
         ],
       ),
     );

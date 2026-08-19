@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
+import '../../../core/widgets/photo_remark_capture.dart';
+import '../../../core/widgets/dashboard_banner.dart';
 import '../providers/rider_providers.dart';
 import '../scan/scan_qrcode_screen.dart';
 import '../jobs/rider_order_detail_screen.dart';
+import '../history/rider_activity_history_screen.dart';
 import '../profile/rider_profile_screen.dart';
 
 class RiderHomeScreen extends ConsumerWidget {
@@ -20,12 +23,19 @@ class RiderHomeScreen extends ConsumerWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Rider — ${user?.name ?? ''}'),
+          automaticallyImplyLeading: false,
+          title: const Text('Rider'),
           actions: [
             IconButton(
               icon: const Icon(Icons.qr_code_scanner),
               onPressed: () => Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const ScanQrcodeScreen())),
+            ),
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'Activity history',
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const RiderActivityHistoryScreen())),
             ),
             IconButton(
               icon: const Icon(Icons.person_outline),
@@ -42,6 +52,13 @@ class RiderHomeScreen extends ConsumerWidget {
         body: homeAsync.when(
           data: (state) => Column(
             children: [
+              DashboardBanner(
+                name: user?.name ?? '',
+                mascotAsset: 'assets/images/mascot_rider.png',
+                subtitle: state.isDuty ? 'On duty — visible for new jobs' : 'Off duty',
+                onNotificationTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const RiderActivityHistoryScreen())),
+              ),
               SwitchListTile(
                 title: const Text('On duty'),
                 subtitle: Text(state.isDuty ? 'You are visible for new jobs' : "You're off duty"),
@@ -94,6 +111,18 @@ class _JobCardState extends ConsumerState<_JobCard> {
   bool _isSubmitting = false;
 
   Future<void> _handleAction() async {
+    // Pickup and pickup-from-outlet can optionally capture a photo +
+    // remark first — confirmDelivery already has its own dedicated
+    // multi-photo flow elsewhere (RiderOrderDetailScreen), untouched here.
+    PhotoRemarkResult? capture;
+    if (widget.job.code == RiderStatusCode.readyForPickup) {
+      capture = await showPhotoRemarkCapture(context, title: 'Item picked up / delivered to outlet');
+      if (capture == null) return; // dismissed without confirming
+    } else if (widget.job.code == RiderStatusCode.pickupFromWashOutlet) {
+      capture = await showPhotoRemarkCapture(context, title: 'Picked up from outlet — delivering to customer');
+      if (capture == null) return;
+    }
+
     setState(() => _isSubmitting = true);
     final notifier = ref.read(riderHomeProvider.notifier);
     try {
@@ -102,10 +131,10 @@ class _JobCardState extends ConsumerState<_JobCard> {
           await notifier.acceptJob(widget.job.id);
           break;
         case RiderStatusCode.readyForPickup:
-          await notifier.confirmPickup(widget.job.id);
+          await notifier.confirmPickup(widget.job.id, photoPath: capture?.photoPath, remark: capture?.remark);
           break;
         case RiderStatusCode.pickupFromWashOutlet:
-          await notifier.confirmPickupFromOutlet(widget.job.id);
+          await notifier.confirmPickupFromOutlet(widget.job.id, photoPath: capture?.photoPath, remark: capture?.remark);
           break;
         case RiderStatusCode.deliveryToCustomer:
           await notifier.confirmDelivery(widget.job.id);

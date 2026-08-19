@@ -49,9 +49,16 @@ class RiderHomeNotifier extends AutoDisposeAsyncNotifier<RiderHomeState> {
     await future;
   }
 
-  Future<void> confirmDelivery(int assignId) async {
-    await ref.read(riderRepositoryProvider).deliveryConfirm(assignId);
+  Future<void> confirmDelivery(int assignId, {required String photoPath, String? remark}) async {
+    await ref.read(riderRepositoryProvider).deliveryConfirm(assignId, photoPath: photoPath, remark: remark);
     ref.invalidateSelf();
     await future;
   }
 }
+
+/// Activity/job history — separate from riderHomeProvider (today/incoming
+/// active jobs only) since this covers everything including cancelled
+/// and completed jobs, which the home dashboard was never meant to show.
+final riderActivityHistoryProvider = FutureProvider.autoDispose((ref) {
+  return ref.read(riderRepositoryProvider).activityHistory();
+});

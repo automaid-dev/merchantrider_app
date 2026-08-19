@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
-import '../providers/rider_providers.dart';
-import 'rider_profile_edit_screen.dart';
+import '../providers/merchant_providers.dart';
+import 'merchant_profile_edit_screen.dart';
 
-/// Wraps POST /rider/profile (RiderProfileController::profile), which
+/// Wraps POST /merchant/profile (Api/Merchant/ProfileController::profile), which
 /// eager-loads wallet.transactions and activities. Tap the edit icon to
-/// update profile fields (name, IC, address, emergency contact, bank
-/// info + avatar) via RiderProfileEditScreen.
-class RiderProfileScreen extends ConsumerStatefulWidget {
-  const RiderProfileScreen({super.key});
+/// update profile fields (name, IC, address, equipment, company, bank
+/// info + avatar) via MerchantProfileEditScreen.
+class MerchantProfileScreen extends ConsumerStatefulWidget {
+  const MerchantProfileScreen({super.key});
 
   @override
-  ConsumerState<RiderProfileScreen> createState() => _RiderProfileScreenState();
+  ConsumerState<MerchantProfileScreen> createState() => _MerchantProfileScreenState();
 }
 
-class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
+class _MerchantProfileScreenState extends ConsumerState<MerchantProfileScreen> {
   Map<String, dynamic>? _user;
   bool _loading = true;
   String? _error;
@@ -28,7 +28,7 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
 
   Future<void> _load() async {
     try {
-      final user = await ref.read(riderRepositoryProvider).profile();
+      final user = await ref.read(merchantRepositoryProvider).profile();
       setState(() {
         _user = user;
         _loading = false;
@@ -55,7 +55,7 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
               icon: const Icon(Icons.edit_outlined),
               onPressed: () async {
                 await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => RiderProfileEditScreen(initialUser: _user!)),
+                  MaterialPageRoute(builder: (_) => MerchantProfileEditScreen(initialUser: _user!)),
                 );
                 _load();
               },

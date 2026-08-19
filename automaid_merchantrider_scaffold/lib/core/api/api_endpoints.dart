@@ -122,6 +122,7 @@ class ApiEndpoints {
   static const riderOrderDeliveryUpload = '/rider/order/delivery/upload';
   static const riderScanQrcode = '/rider/scan/qrcode';
   static const riderOrderDetail = '/rider/order/detail';
+  static const riderActivityHistory = '/rider/activity/history';
   static const riderReapplyUpdate = '/rider/re-apply/update';
 
   // ---- Merchant ----
@@ -136,5 +137,6 @@ class ApiEndpoints {
   static const merchantWashComplete = '/merchant/wash/complete';
   static const merchantScanQrcode = '/merchant/scan/qrcode';
   static const merchantOrderDetail = '/merchant/order/detail';
+  static const merchantActivityHistory = '/merchant/activity/history';
   static const merchantReapplyUpdate = '/merchant/re-apply/update';
 }

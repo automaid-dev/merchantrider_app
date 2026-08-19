@@ -2,24 +2,23 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Result of [showPhotoRemarkCapture] — photoPath is always non-null,
-/// since a photo is required to confirm any handoff step; remark stays
-/// optional.
+/// Result of [showPhotoRemarkCapture] — both fields optional, since the
+/// backend accepts these steps with or without a photo (older app
+/// builds keep working, and a rider/merchant can skip in a pinch).
 class PhotoRemarkResult {
-  const PhotoRemarkResult({required this.photoPath, this.remark});
-  final String photoPath;
+  const PhotoRemarkResult({this.photoPath, this.remark});
+  final String? photoPath;
   final String? remark;
 }
 
-/// Bottom sheet: take a **required** photo + optional remark before
-/// confirming a handoff step (pickup, delivered to outlet, wash in
-/// progress, wash complete, pickup from outlet, delivery to customer).
-/// Shared between the rider and merchant apps rather than duplicated,
-/// since the UX is identical.
+/// Bottom sheet: take a photo + optional remark before confirming a
+/// handoff step (pickup, delivered to outlet, wash in progress, wash
+/// complete, pickup from outlet). Shared between the rider and merchant
+/// apps rather than duplicated, since the UX is identical.
 ///
 /// Returns null if the person backs out entirely (dismissed sheet
-/// without confirming) — otherwise always has a photo attached; there's
-/// no way to confirm without one.
+/// without confirming) — [PhotoRemarkResult] with null fields if they
+/// tap "Confirm without photo".
 Future<PhotoRemarkResult?> showPhotoRemarkCapture(
   BuildContext context, {
   required String title,
@@ -28,8 +27,6 @@ Future<PhotoRemarkResult?> showPhotoRemarkCapture(
   return showModalBottomSheet<PhotoRemarkResult>(
     context: context,
     isScrollControlled: true,
-    isDismissible: false,
-    enableDrag: false,
     builder: (context) => _PhotoRemarkSheet(title: title, remarkHint: remarkHint),
   );
 }
@@ -60,10 +57,9 @@ class _PhotoRemarkSheetState extends State<_PhotoRemarkSheet> {
   }
 
   void _confirm() {
-    if (_photo == null) return; // guarded by the button being disabled too
     Navigator.of(context).pop(
       PhotoRemarkResult(
-        photoPath: _photo!.path,
+        photoPath: _photo?.path,
         remark: _remarkController.text.trim().isEmpty ? null : _remarkController.text.trim(),
       ),
     );
@@ -83,11 +79,6 @@ class _PhotoRemarkSheetState extends State<_PhotoRemarkSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(
-            'A photo is required to confirm this step.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-          ),
           const SizedBox(height: 12),
           GestureDetector(
             onTap: _takePhoto,
@@ -96,7 +87,6 @@ class _PhotoRemarkSheetState extends State<_PhotoRemarkSheet> {
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(12),
-                border: _photo == null ? Border.all(color: Colors.red.shade200) : null,
                 image: _photo != null
                     ? DecorationImage(image: FileImage(_photo!), fit: BoxFit.cover)
                     : null,
@@ -132,8 +122,8 @@ class _PhotoRemarkSheetState extends State<_PhotoRemarkSheet> {
           ),
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: _photo == null ? null : _confirm,
-            child: const Text('Confirm'),
+            onPressed: _confirm,
+            child: Text(_photo == null ? 'Confirm without photo' : 'Confirm'),
           ),
         ],
       ),

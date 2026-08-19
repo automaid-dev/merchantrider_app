@@ -53,7 +53,13 @@ class _RegisterMerchantScreenState extends ConsumerState<RegisterMerchantScreen>
   final _companyName = TextEditingController();
   final _ssmNo = TextEditingController();
   String? _businessOption;
-  static const _businessOptions = ['Corporate', 'Sole Proprietor', 'Partnership'];
+  // Confirmed from the actual backend column (business_option:
+  // 1=Corporate, 2=JV, 3=Franchise) — the earlier guess of
+  // 'Sole Proprietor'/'Partnership' was wrong (the flow doc only ever
+  // showed one option selected, so the full set had to be inferred,
+  // and that inference turned out incorrect — it crashed at
+  // registration since the backend didn't recognize those labels).
+  static const _businessOptions = ['Corporate', 'JV', 'Franchise'];
 
   // Bank (optional)
   String? _bankName;

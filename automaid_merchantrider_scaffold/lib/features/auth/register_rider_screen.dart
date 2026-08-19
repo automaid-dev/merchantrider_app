@@ -146,6 +146,7 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
             password: _password.text,
             passwordConfirmation: _confirmPassword.text,
             icno: _icno.text.trim(),
+            idType: _idType,
             addressLine1: _addressLine1.text.trim(),
             addressLine2: _addressLine2.text.trim(),
             countryName: _country.text.trim(),

@@ -7,6 +7,8 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
+import '../../../core/widgets/order_status_timeline.dart';
+import '../../../core/widgets/navigate_button.dart';
 import '../providers/rider_providers.dart';
 
 /// Full order detail for a rider's job, with delivery-proof photo upload
@@ -68,6 +70,48 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
     return _data?['code'] == RiderStatusCode.orderDelivered;
   }
 
+  /// The order object regardless of which response shape `_data` is —
+  /// itself directly when isComplete=true, or nested under 'order' when
+  /// it's an assign_job (isComplete=false).
+  Map<String, dynamic>? get _order =>
+      widget.isComplete ? _data : _data?['order'] as Map<String, dynamic>?;
+
+  Map<String, dynamic>? get _pickupLocation =>
+      (_order?['booking'] as Map<String, dynamic>?)?['pickup_location'] as Map<String, dynamic>?;
+
+  Map<String, dynamic>? get _outletLocation {
+    final merchant = _order?['merchant'] as Map<String, dynamic>?;
+    final merchantUser = merchant?['user'] as Map<String, dynamic>?;
+    final merchantProfile = merchantUser?['merchant'] as Map<String, dynamic>?;
+    return merchantProfile?['outlet'] as Map<String, dynamic>?;
+  }
+
+  Widget _buildNavigateButtons() {
+    final pickup = _pickupLocation;
+    final outlet = _outletLocation;
+    if (pickup == null && outlet == null) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (pickup != null)
+          NavigateButton(
+            latitude: pickup['latitude']?.toString(),
+            longitude: pickup['longitude']?.toString(),
+            label: 'Navigate to customer',
+          ),
+        if (outlet != null)
+          NavigateButton(
+            latitude: outlet['latitude']?.toString(),
+            longitude: outlet['longitude']?.toString(),
+            label: 'Navigate to outlet',
+            destinationName: outlet['name']?.toString(),
+          ),
+      ],
+    );
+  }
+
   int get _assignId => widget.isComplete ? (_data?['id'] as int? ?? widget.id) : widget.id;
 
   Future<void> _pickPhoto() async {
@@ -113,7 +157,15 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                   children: [
                     Text('Order ID: ${_data?['order_id'] ?? _data?['id'] ?? '-'}'),
                     Text('Status code: ${_data?['code'] ?? '-'}'),
+                    const SizedBox(height: 12),
+                    _buildNavigateButtons(),
                     const Divider(height: 32),
+                    if (widget.isComplete && _data?['rider_order_statuses'] != null) ...[
+                      Text('Order status', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 12),
+                      OrderStatusTimeline(statuses: _data!['rider_order_statuses'] as List<dynamic>),
+                      const Divider(height: 32),
+                    ],
                     if (_isDelivered) ...[
                       Text('Delivery proof', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),

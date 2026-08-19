@@ -4,9 +4,12 @@ import '../../../core/api/api_client.dart';
 import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
 import '../../../core/widgets/photo_remark_capture.dart';
+import '../../../core/widgets/dashboard_banner.dart';
 import '../providers/merchant_providers.dart';
 import '../scan/merchant_scan_qrcode_screen.dart';
 import '../jobs/merchant_order_detail_screen.dart';
+import '../history/merchant_activity_history_screen.dart';
+import '../notifications/merchant_notifications_screen.dart';
 import '../profile/merchant_profile_screen.dart';
 
 class MerchantHomeScreen extends ConsumerWidget {
@@ -21,12 +24,19 @@ class MerchantHomeScreen extends ConsumerWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Outlet — ${user?.name ?? ''}'),
+          automaticallyImplyLeading: false,
+          title: const Text('Outlet'),
           actions: [
             IconButton(
               icon: const Icon(Icons.qr_code_scanner),
               onPressed: () => Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const MerchantScanQrcodeScreen())),
+            ),
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'Activity history',
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const MerchantActivityHistoryScreen())),
             ),
             IconButton(
               icon: const Icon(Icons.person_outline),
@@ -43,6 +53,13 @@ class MerchantHomeScreen extends ConsumerWidget {
         body: homeAsync.when(
           data: (state) => Column(
             children: [
+              DashboardBanner(
+                name: user?.name ?? '',
+                mascotAsset: 'assets/images/mascot_merchant.png',
+                subtitle: 'Laundry assistant',
+                onNotificationTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const MerchantNotificationsScreen())),
+              ),
               SwitchListTile(
                 title: const Text('On duty'),
                 subtitle: Text(state.isDuty ? 'You are visible for new jobs' : "You're off duty"),

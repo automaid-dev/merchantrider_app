@@ -48,7 +48,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // On success, go_router's redirect (see app_router.dart) sends the
       // user to their role's home automatically once auth state updates.
     } on ApiException catch (e) {
-      setState(() => _errorMessage = e.message);
+      // AuthController::login() returns a plain 'Unauthorized' for bad
+      // credentials — shown as something an actual user would expect.
+      final message = (e.statusCode == 401)
+          ? 'Incorrect email or password. Please try again.'
+          : e.message;
+      setState(() => _errorMessage = message);
     } catch (e) {
       setState(() => _errorMessage = 'Something went wrong. Please try again.');
     } finally {

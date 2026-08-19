@@ -84,6 +84,7 @@ class AuthRepository {
     required String password,
     required String passwordConfirmation,
     required String icno,
+    String? idType, // 'NRIC' | 'Passport' — mapped to the backend's integer code
     required String addressLine1,
     required String addressLine2,
     required String countryName,
@@ -121,6 +122,7 @@ class AuthRepository {
       'password': password,
       'password_confirmation': passwordConfirmation,
       'icno': icno,
+      if (idType != null) 'id_type': idType,
       'address_line_1': addressLine1,
       'address_line_2': addressLine2,
       'country_name': countryName,
@@ -147,7 +149,14 @@ class AuthRepository {
       'license_back': await MultipartFile.fromFile(licenseBackPath),
       'jpj_grant': await MultipartFile.fromFile(jpjGrantPath),
     });
-    final json = await _api.post(ApiEndpoints.riderRegister, data: formData);
+    // Longer timeout than the default 15s — this uploads up to 5 photos
+    // (IC front/back, license front/back, JPJ grant) plus all the text
+    // fields in one request. A client-side timeout here doesn't mean
+    // the server request failed — it may complete anyway, which is
+    // exactly what caused a real "email already taken, but I never got
+    // my OTP" dead end for at least one merchant registration before
+    // this was raised (same issue applies to rider — same fix here).
+    final json = await _api.post(ApiEndpoints.riderRegister, data: formData, timeout: const Duration(seconds: 60));
     return _describeRegisterResult(json);
   }
 
@@ -217,7 +226,10 @@ class AuthRepository {
       'ic_back': await MultipartFile.fromFile(icBackPath),
       if (ssmCertPath != null) 'ssm_cert': await MultipartFile.fromFile(ssmCertPath),
     }, ListFormat.multiCompatible); // service_categories needs key[]=value PHP array syntax, not Dio's default
-    final json = await _api.post(ApiEndpoints.merchantRegister, data: formData);
+    // Longer timeout than the default 15s — see the matching comment on
+    // registerRider() above. This is exactly what caused the "email
+    // already taken, stuck, can't reach OTP" issue reported.
+    final json = await _api.post(ApiEndpoints.merchantRegister, data: formData, timeout: const Duration(seconds: 60));
     return _describeRegisterResult(json);
   }
 

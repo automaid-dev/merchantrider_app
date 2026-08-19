@@ -163,12 +163,9 @@ class MerchantRepository {
 
   /// Every activity this merchant has been involved in, newest first —
   /// same reasoning as the matching rider method.
-  /// Every order this merchant has ever accepted, at any stage — see
-  /// the matching comment on RiderRepository.activityHistory() for why
-  /// this changed from an Activity-log query to a direct order query.
   Future<List<Map<String, dynamic>>> activityHistory() async {
     final json = await _api.post(ApiEndpoints.merchantActivityHistory);
-    return (unwrapData(json, fallback: 'Could not load order history.')['orders']
+    return (unwrapData(json, fallback: 'Could not load activity history.')['activities']
             as List<dynamic>? ??
         [])
         .cast<Map<String, dynamic>>();
