@@ -178,4 +178,23 @@ class MerchantRepository {
   // company/equipment/bank info) for merchants whose application was
   // rejected — see Api/Merchant/ReapplyController::reApplyUpdate for the
   // exact field list, same pattern as the rider re-apply gap.
+
+  /// This merchant's Laravel database notifications, newest first — see
+  /// Api/NotificationController::index. Unlike the other endpoints, the
+  /// top-level `data` here is a raw JSON array (a serialized
+  /// DatabaseNotificationCollection), not an object, so this can't go
+  /// through unwrapData (which only handles `data` as a Map).
+  Future<List<Map<String, dynamic>>> notifications() async {
+    final json = await _api.post(ApiEndpoints.notificationIndex);
+    if (json['status'] == false) {
+      throw ApiException(json['message']?.toString() ?? 'Could not load notifications.');
+    }
+    return (json['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  /// Marks every notification as read — see
+  /// Api/NotificationController::read_all.
+  Future<void> markNotificationsRead() async {
+    await _api.post(ApiEndpoints.notificationReadAll);
+  }
 }

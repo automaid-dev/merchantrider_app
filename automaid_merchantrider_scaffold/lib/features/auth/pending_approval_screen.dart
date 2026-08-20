@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/auth_providers.dart';
+import '../../core/widgets/confirm_dialog.dart';
 
 /// Shown when the account is authenticated (OTP verified) but the
 /// Rider/Merchant entity itself hasn't been approved by admin yet —
@@ -36,7 +37,12 @@ class PendingApprovalScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 32),
               OutlinedButton(
-                onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+                onPressed: () async {
+                  final confirmed = await showLogoutConfirmDialog(context);
+                  if (confirmed) {
+                    ref.read(authControllerProvider.notifier).logout();
+                  }
+                },
                 child: const Text('Log out'),
               ),
             ],

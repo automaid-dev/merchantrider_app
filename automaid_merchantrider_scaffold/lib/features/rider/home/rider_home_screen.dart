@@ -5,6 +5,7 @@ import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
 import '../../../core/widgets/photo_remark_capture.dart';
 import '../../../core/widgets/dashboard_banner.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../providers/rider_providers.dart';
 import '../scan/scan_qrcode_screen.dart';
 import '../jobs/rider_order_detail_screen.dart';
@@ -45,7 +46,12 @@ class RiderHomeScreen extends ConsumerWidget {
             ),
             IconButton(
               icon: const Icon(Icons.logout),
-              onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+              onPressed: () async {
+                final confirmed = await showLogoutConfirmDialog(context);
+                if (confirmed) {
+                  ref.read(authControllerProvider.notifier).logout();
+                }
+              },
             ),
           ],
           bottom: const TabBar(tabs: [Tab(text: 'Today'), Tab(text: 'Incoming')]),
