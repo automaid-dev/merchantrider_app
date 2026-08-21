@@ -79,17 +79,38 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
   Map<String, dynamic>? get _pickupLocation =>
       (_order?['booking'] as Map<String, dynamic>?)?['pickup_location'] as Map<String, dynamic>?;
 
-  Map<String, dynamic>? get _outletLocation {
-    final merchant = _order?['merchant'] as Map<String, dynamic>?;
-    final merchantUser = merchant?['user'] as Map<String, dynamic>?;
-    final merchantProfile = merchantUser?['merchant'] as Map<String, dynamic>?;
+  Map<String, dynamic>? get _merchant => _order?['merchant'] as Map<String, dynamic>?;
+
+  Map<String, dynamic>? get _merchantUser => _merchant?['user'] as Map<String, dynamic>?;
+
+  Map<String, dynamic>? get _outlet {
+    final merchantProfile = _merchantUser?['merchant'] as Map<String, dynamic>?;
     return merchantProfile?['outlet'] as Map<String, dynamic>?;
+  }
+
+  /// The merchant's location for navigation — prefers the outlet's own
+  /// geocoded address, but falls back to the merchant user's own
+  /// latitude/longitude (the same coordinates the backend's
+  /// auto-assign matching relies on, so they're reliably populated)
+  /// if the outlet record itself has no coordinates set. Previously
+  /// this only ever looked at the outlet, so a merchant whose outlet
+  /// address was never geocoded showed no usable navigate button at
+  /// all even though a perfectly good location existed one level up.
+  Map<String, dynamic>? get _merchantLocation {
+    final outlet = _outlet;
+    if (outlet != null && outlet['latitude'] != null && outlet['longitude'] != null) {
+      return outlet;
+    }
+    if (_merchantUser != null && _merchantUser!['latitude'] != null && _merchantUser!['longitude'] != null) {
+      return _merchantUser;
+    }
+    return null;
   }
 
   Widget _buildNavigateButtons() {
     final pickup = _pickupLocation;
-    final outlet = _outletLocation;
-    if (pickup == null && outlet == null) return const SizedBox.shrink();
+    final merchantLocation = _merchantLocation;
+    if (pickup == null && merchantLocation == null) return const SizedBox.shrink();
 
     return Wrap(
       spacing: 8,
@@ -101,12 +122,12 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
             longitude: pickup['longitude']?.toString(),
             label: 'Navigate to customer',
           ),
-        if (outlet != null)
+        if (merchantLocation != null)
           NavigateButton(
-            latitude: outlet['latitude']?.toString(),
-            longitude: outlet['longitude']?.toString(),
-            label: 'Navigate to outlet',
-            destinationName: outlet['name']?.toString(),
+            latitude: merchantLocation['latitude']?.toString(),
+            longitude: merchantLocation['longitude']?.toString(),
+            label: 'Navigate to merchant',
+            destinationName: (_outlet?['name'] ?? _merchantUser?['name'])?.toString(),
           ),
       ],
     );
