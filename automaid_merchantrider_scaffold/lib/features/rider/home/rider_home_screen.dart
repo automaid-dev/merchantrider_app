@@ -21,83 +21,94 @@ class RiderHomeScreen extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).user;
     final homeAsync = ref.watch(riderHomeProvider);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('Rider'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.qr_code_scanner),
-              onPressed: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const ScanQrcodeScreen())),
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Rider'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ScanQrcodeScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Activity history',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const RiderActivityHistoryScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const RiderProfileScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final confirmed = await showLogoutConfirmDialog(context);
+              if (confirmed) {
+                ref.read(authControllerProvider.notifier).logout();
+              }
+            },
+          ),
+        ],
+      ),
+      body: homeAsync.when(
+        data: (state) => Column(
+          children: [
+            DashboardBanner(
+              name: user?.name ?? '',
+              mascotAsset: 'assets/images/mascot_rider.png',
+              subtitle: state.isDuty ? 'On duty — visible for new jobs' : 'Off duty',
+              onNotificationTap: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const RiderNotificationsScreen())),
             ),
-            IconButton(
-              icon: const Icon(Icons.history),
-              tooltip: 'Activity history',
-              onPressed: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const RiderActivityHistoryScreen())),
+            // On duty sits right after the banner, before any order
+            // content, so it's never sandwiched between order cards
+            // and their action buttons — that proximity was causing
+            // accidental taps between the duty toggle and the next-step
+            // button right below it.
+            SwitchListTile(
+              title: const Text('On duty'),
+              subtitle: Text(state.isDuty ? 'You are visible for new jobs' : "You're off duty"),
+              value: state.isDuty,
+              onChanged: (v) => ref.read(riderHomeProvider.notifier).toggleDuty(v),
             ),
-            IconButton(
-              icon: const Icon(Icons.person_outline),
-              onPressed: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const RiderProfileScreen())),
+            const Divider(height: 1),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Active bookings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () async {
-                final confirmed = await showLogoutConfirmDialog(context);
-                if (confirmed) {
-                  ref.read(authControllerProvider.notifier).logout();
-                }
-              },
+            // One list, one source of truth per order — this used to be
+            // duplicated across a separate "Active booking" scroller AND
+            // a Today/Incoming tabbed list, so the same order could show
+            // twice with two different (and sometimes contradictory-
+            // looking) labels. Every open job for this rider, pending or
+            // accepted, now lives here exactly once, always showing its
+            // true current step.
+            Expanded(
+              child: _JobList(jobs: state.active, emptyText: 'No active bookings right now.'),
             ),
           ],
-          bottom: const TabBar(tabs: [Tab(text: 'Today'), Tab(text: 'Incoming')]),
         ),
-        body: homeAsync.when(
-          data: (state) => Column(
-            children: [
-              DashboardBanner(
-                name: user?.name ?? '',
-                mascotAsset: 'assets/images/mascot_rider.png',
-                subtitle: state.isDuty ? 'On duty — visible for new jobs' : 'Off duty',
-                onNotificationTap: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => const RiderNotificationsScreen())),
-              ),
-              SwitchListTile(
-                title: const Text('On duty'),
-                subtitle: Text(state.isDuty ? 'You are visible for new jobs' : "You're off duty"),
-                value: state.isDuty,
-                onChanged: (v) => ref.read(riderHomeProvider.notifier).toggleDuty(v),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _JobList(jobs: state.today),
-                    _JobList(jobs: state.incoming),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Could not load dashboard: $e')),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Could not load dashboard: $e')),
       ),
     );
   }
 }
 
 class _JobList extends StatelessWidget {
-  const _JobList({required this.jobs});
+  const _JobList({required this.jobs, this.emptyText = 'No jobs here right now.'});
   final List<AssignJob> jobs;
+  final String emptyText;
 
   @override
   Widget build(BuildContext context) {
-    if (jobs.isEmpty) return const Center(child: Text('No jobs here right now.'));
+    if (jobs.isEmpty) return Center(child: Text(emptyText));
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: jobs.length,

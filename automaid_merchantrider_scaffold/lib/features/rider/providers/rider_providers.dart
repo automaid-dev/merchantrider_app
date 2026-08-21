@@ -11,8 +11,14 @@ class RiderHomeState {
   final bool isDuty;
   final List<AssignJob> today;
   final List<AssignJob> incoming;
+  final List<AssignJob> active;
 
-  const RiderHomeState({required this.isDuty, required this.today, required this.incoming});
+  const RiderHomeState({
+    required this.isDuty,
+    required this.today,
+    required this.incoming,
+    required this.active,
+  });
 }
 
 final riderHomeProvider =
@@ -22,7 +28,12 @@ class RiderHomeNotifier extends AutoDisposeAsyncNotifier<RiderHomeState> {
   @override
   Future<RiderHomeState> build() async {
     final result = await ref.read(riderRepositoryProvider).home();
-    return RiderHomeState(isDuty: result.isDuty, today: result.today, incoming: result.incoming);
+    return RiderHomeState(
+      isDuty: result.isDuty,
+      today: result.today,
+      incoming: result.incoming,
+      active: result.active,
+    );
   }
 
   Future<void> toggleDuty(bool isDuty) async {

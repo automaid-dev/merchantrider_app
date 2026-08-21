@@ -12,7 +12,7 @@ class MerchantRepository {
   /// Api/Merchant/HomeController::home — jobs are pre-filtered to
   /// "pending action" ones only, split into today vs incoming by the
   /// booking's pickup_date, matching the rider dashboard's shape exactly.
-  Future<({bool isDuty, List<AssignJob> today, List<AssignJob> incoming})> home() async {
+  Future<({bool isDuty, List<AssignJob> today, List<AssignJob> incoming, List<AssignJob> active})> home() async {
     final json = await _api.post(ApiEndpoints.merchantHome);
     final data = unwrapData(json, fallback: 'Could not load dashboard.');
     final jobs = data['assign_jobs'] as Map<String, dynamic>? ?? {};
@@ -23,6 +23,7 @@ class MerchantRepository {
       isDuty: data['is_duty'] == true || data['is_duty'] == 1,
       today: parse('today'),
       incoming: parse('incoming'),
+      active: parse('active'),
     );
   }
 

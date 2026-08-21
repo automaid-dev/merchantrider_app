@@ -160,10 +160,10 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                     const SizedBox(height: 12),
                     _buildNavigateButtons(),
                     const Divider(height: 32),
-                    if (widget.isComplete && _data?['rider_order_statuses'] != null) ...[
+                    if (_order?['rider_order_statuses'] != null) ...[
                       Text('Order status', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
-                      OrderStatusTimeline(statuses: _data!['rider_order_statuses'] as List<dynamic>),
+                      OrderStatusTimeline(statuses: _order!['rider_order_statuses'] as List<dynamic>),
                       const Divider(height: 32),
                     ],
                     if (_isDelivered) ...[

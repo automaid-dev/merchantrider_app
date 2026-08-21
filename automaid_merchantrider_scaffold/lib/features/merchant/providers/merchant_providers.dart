@@ -11,8 +11,14 @@ class MerchantHomeState {
   final bool isDuty;
   final List<AssignJob> today;
   final List<AssignJob> incoming;
+  final List<AssignJob> active;
 
-  const MerchantHomeState({required this.isDuty, required this.today, required this.incoming});
+  const MerchantHomeState({
+    required this.isDuty,
+    required this.today,
+    required this.incoming,
+    required this.active,
+  });
 }
 
 final merchantHomeProvider =
@@ -22,7 +28,12 @@ class MerchantHomeNotifier extends AutoDisposeAsyncNotifier<MerchantHomeState> {
   @override
   Future<MerchantHomeState> build() async {
     final result = await ref.read(merchantRepositoryProvider).home();
-    return MerchantHomeState(isDuty: result.isDuty, today: result.today, incoming: result.incoming);
+    return MerchantHomeState(
+      isDuty: result.isDuty,
+      today: result.today,
+      incoming: result.incoming,
+      active: result.active,
+    );
   }
 
   Future<void> toggleDuty(bool isDuty) async {

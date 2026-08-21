@@ -12,7 +12,7 @@ class RiderRepository {
   /// jobs are pre-filtered by the backend to "pending action" ones only
   /// (its `$shouldShowPending` logic), split into today vs incoming by
   /// the booking's pickup_date.
-  Future<({bool isDuty, List<AssignJob> today, List<AssignJob> incoming})> home() async {
+  Future<({bool isDuty, List<AssignJob> today, List<AssignJob> incoming, List<AssignJob> active})> home() async {
     final json = await _api.post(ApiEndpoints.riderHome);
     final data = unwrapData(json, fallback: 'Could not load dashboard.');
     final jobs = data['assign_jobs'] as Map<String, dynamic>? ?? {};
@@ -23,6 +23,7 @@ class RiderRepository {
       isDuty: data['is_duty'] == true || data['is_duty'] == 1,
       today: parse('today'),
       incoming: parse('incoming'),
+      active: parse('active'),
     );
   }
 
