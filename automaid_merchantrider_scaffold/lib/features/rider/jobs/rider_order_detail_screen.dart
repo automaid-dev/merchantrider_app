@@ -79,6 +79,11 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
   Map<String, dynamic>? get _pickupLocation =>
       (_order?['booking'] as Map<String, dynamic>?)?['pickup_location'] as Map<String, dynamic>?;
 
+  Map<String, dynamic>? get _booking => _order?['booking'] as Map<String, dynamic>?;
+
+  String? get _pickupPhotoUrl => _booking?['pickup_photo_url']?.toString();
+  String? get _pickupNote => _booking?['pickup_note']?.toString();
+
   Map<String, dynamic>? get _merchant => _order?['merchant'] as Map<String, dynamic>?;
 
   Map<String, dynamic>? get _merchantUser => _merchant?['user'] as Map<String, dynamic>?;
@@ -179,6 +184,43 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                     Text('Order ID: ${_data?['order_id'] ?? _data?['id'] ?? '-'}'),
                     Text('Status code: ${_data?['code'] ?? '-'}'),
                     const SizedBox(height: 12),
+                    // Customer's pickup handoff photo + note — set once
+                    // at booking time (e.g. "left at hotel lobby with
+                    // reception, ask for Ariff"), shown here for the
+                    // whole life of the job rather than tied to any
+                    // specific step, since it's relevant from the
+                    // moment this job is assigned all the way through
+                    // to actually collecting the bag.
+                    if (_pickupPhotoUrl != null || (_pickupNote?.isNotEmpty ?? false)) ...[
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Where to collect', style: Theme.of(context).textTheme.titleSmall),
+                              const SizedBox(height: 8),
+                              if (_pickupPhotoUrl != null)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    _pickupPhotoUrl!,
+                                    height: 180,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                  ),
+                                ),
+                              if (_pickupNote?.isNotEmpty ?? false) ...[
+                                const SizedBox(height: 8),
+                                Text(_pickupNote!),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     _buildNavigateButtons(),
                     const Divider(height: 32),
                     if (_order?['rider_order_statuses'] != null) ...[
