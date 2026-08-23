@@ -5,6 +5,7 @@ import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
 import '../../../core/widgets/photo_remark_capture.dart';
 import '../../../core/widgets/dashboard_banner.dart';
+import '../../../core/widgets/promo_banner_carousel.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../providers/rider_providers.dart';
 import '../scan/scan_qrcode_screen.dart';
@@ -20,6 +21,7 @@ class RiderHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
     final homeAsync = ref.watch(riderHomeProvider);
+    final bannersAsync = ref.watch(riderBannersProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -62,6 +64,18 @@ class RiderHomeScreen extends ConsumerWidget {
               subtitle: state.isDuty ? 'On duty — visible for new jobs' : 'Off duty',
               onNotificationTap: () => Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const RiderNotificationsScreen())),
+            ),
+            // Admin-managed promotional banners — renders nothing if
+            // there are none configured or active.
+            bannersAsync.when(
+              data: (banners) => banners.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                      child: PromoBannerCarousel(banners: banners),
+                    ),
+              loading: () => const SizedBox.shrink(),
+              error: (e, _) => const SizedBox.shrink(),
             ),
             // On duty sits right after the banner, before any order
             // content, so it's never sandwiched between order cards

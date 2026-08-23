@@ -1,10 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
+import '../../../core/models/promo_banner_model.dart';
 import '../data/merchant_repository.dart';
 
 final merchantRepositoryProvider = Provider<MerchantRepository>((ref) {
   return MerchantRepository(ref.read(apiClientProvider));
+});
+
+/// Admin-managed promotional banners for the merchant dashboard carousel.
+final merchantBannersProvider = FutureProvider.autoDispose<List<PromoBanner>>((ref) {
+  return ref.read(merchantRepositoryProvider).banners();
 });
 
 class MerchantHomeState {

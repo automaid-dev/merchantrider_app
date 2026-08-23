@@ -29,6 +29,7 @@ dependencies:
 
   # Photo capture (delivery proof, document uploads)
   image_picker: ^1.1.2
+  url_launcher: ^6.3.1
 
   # Map location picker (registration address confirmation)
   google_maps_flutter: ^2.9.0

@@ -3,6 +3,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_data_helper.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/assign_job_model.dart';
+import '../../../core/models/promo_banner_model.dart';
 
 class MerchantRepository {
   MerchantRepository(this._api);
@@ -197,5 +198,15 @@ class MerchantRepository {
   /// Api/NotificationController::read_all.
   Future<void> markNotificationsRead() async {
     await _api.post(ApiEndpoints.notificationReadAll);
+  }
+
+  /// Admin-managed promotional banners for the merchant dashboard —
+  /// shared 'merchantrider' target with the rider app, since they're
+  /// one Flutter app even though this is a separate repository class.
+  Future<List<PromoBanner>> banners() async {
+    final json = await _api.post(ApiEndpoints.banners, data: {'target': 'merchantrider'});
+    final data = unwrapData(json, fallback: 'Could not load banners.');
+    final list = (data['banners'] as List<dynamic>? ?? []);
+    return list.map((b) => PromoBanner.fromJson(b as Map<String, dynamic>)).toList();
   }
 }
