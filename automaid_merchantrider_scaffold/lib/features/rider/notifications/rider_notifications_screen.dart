@@ -31,12 +31,17 @@ class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScr
       final result = await ref.read(riderRepositoryProvider).notifications();
       if (!mounted) return;
       setState(() {
-        _notifications = result;
+        _notifications = result.notifications;
         _loading = false;
       });
       // Mark read after loading, not before — so the unread badge on
       // the dashboard still reflects reality if this fetch fails.
       await ref.read(riderRepositoryProvider).markNotificationsRead();
+      // Refreshes the dashboard's bell badge (see DashboardBanner) now
+      // that everything's been marked read — without this, the badge
+      // kept showing the old unread count until the next full app
+      // restart, even though the person had just viewed everything.
+      ref.invalidate(riderNotificationsProvider);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {

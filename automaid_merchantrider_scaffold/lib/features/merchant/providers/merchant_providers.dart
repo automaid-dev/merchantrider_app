@@ -13,6 +13,13 @@ final merchantBannersProvider = FutureProvider.autoDispose<List<PromoBanner>>((r
   return ref.read(merchantRepositoryProvider).banners();
 });
 
+/// Notification list + unread count — used by the Notifications screen
+/// and the home dashboard's bell badge alike, so both stay in sync
+/// (marking read invalidates this, refreshing the badge immediately).
+final merchantNotificationsProvider = FutureProvider.autoDispose((ref) {
+  return ref.read(merchantRepositoryProvider).notifications();
+});
+
 class MerchantHomeState {
   final bool isDuty;
   final List<AssignJob> today;

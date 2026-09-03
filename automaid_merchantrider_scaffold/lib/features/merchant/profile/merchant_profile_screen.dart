@@ -41,6 +41,14 @@ class _MerchantProfileScreenState extends ConsumerState<MerchantProfileScreen> {
     }
   }
 
+  double _pendingAmount(Map<String, dynamic>? wallet) =>
+      double.tryParse(wallet?['pending_settlement']?.toString() ?? '') ?? 0;
+
+  String _formatAmount(dynamic value) {
+    final parsed = double.tryParse(value?.toString() ?? '') ?? 0;
+    return parsed.toStringAsFixed(2);
+  }
+
   @override
   Widget build(BuildContext context) {
     final wallet = _user?['wallet'] as Map<String, dynamic>?;
@@ -74,10 +82,49 @@ class _MerchantProfileScreenState extends ConsumerState<MerchantProfileScreen> {
                     Text(_user?['email']?.toString() ?? '-'),
                     Text(_user?['mobile_no']?.toString() ?? '-'),
                     const Divider(height: 32),
-                    Text('Wallet balance', style: Theme.of(context).textTheme.titleMedium),
-                    Text(
-                      'RM${wallet?['balance']?.toString() ?? '0.00'}',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    // Two separate figures now, rather than the one
+                    // ever-growing "Wallet balance" — that number was
+                    // actually lifetime earnings the whole time (it
+                    // never decreased even after admin settled a
+                    // payout), with nothing distinguishing "already
+                    // paid out" from "still owed". Both come straight
+                    // from Commission::lifetime_earnings/
+                    // pending_settlement on the backend, computed
+                    // there rather than summed here from the raw
+                    // transaction list.
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Lifetime earnings', style: Theme.of(context).textTheme.titleSmall),
+                              const SizedBox(height: 4),
+                              Text(
+                                'RM${_formatAmount(wallet?['lifetime_earnings'])}',
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Pending settlement', style: Theme.of(context).textTheme.titleSmall),
+                              const SizedBox(height: 4),
+                              Text(
+                                'RM${_formatAmount(wallet?['pending_settlement'])}',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: _pendingAmount(wallet) > 0 ? Colors.orange[800] : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const Divider(height: 32),
                     Text('Recent activity', style: Theme.of(context).textTheme.titleMedium),

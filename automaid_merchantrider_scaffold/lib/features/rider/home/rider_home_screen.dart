@@ -22,6 +22,7 @@ class RiderHomeScreen extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).user;
     final homeAsync = ref.watch(riderHomeProvider);
     final bannersAsync = ref.watch(riderBannersProvider);
+    final unreadCount = ref.watch(riderNotificationsProvider).valueOrNull?.unreadCount ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -62,8 +63,12 @@ class RiderHomeScreen extends ConsumerWidget {
               name: user?.name ?? '',
               mascotAsset: 'assets/images/mascot_rider.png',
               subtitle: state.isDuty ? 'On duty — visible for new jobs' : 'Off duty',
-              onNotificationTap: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const RiderNotificationsScreen())),
+              unreadCount: unreadCount,
+              onNotificationTap: () async {
+                await Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const RiderNotificationsScreen()));
+                ref.invalidate(riderNotificationsProvider);
+              },
             ),
             // Admin-managed promotional banners — renders nothing if
             // there are none configured or active.

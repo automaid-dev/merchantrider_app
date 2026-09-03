@@ -22,6 +22,7 @@ class MerchantHomeScreen extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).user;
     final homeAsync = ref.watch(merchantHomeProvider);
     final bannersAsync = ref.watch(merchantBannersProvider);
+    final unreadCount = ref.watch(merchantNotificationsProvider).valueOrNull?.unreadCount ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -62,8 +63,12 @@ class MerchantHomeScreen extends ConsumerWidget {
               name: user?.name ?? '',
               mascotAsset: 'assets/images/mascot_merchant.png',
               subtitle: 'Laundry assistant',
-              onNotificationTap: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const MerchantNotificationsScreen())),
+              unreadCount: unreadCount,
+              onNotificationTap: () async {
+                await Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const MerchantNotificationsScreen()));
+                ref.invalidate(merchantNotificationsProvider);
+              },
             ),
             // Admin-managed promotional banners — renders nothing if
             // there are none configured or active.

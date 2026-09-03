@@ -182,16 +182,19 @@ class MerchantRepository {
   // exact field list, same pattern as the rider re-apply gap.
 
   /// This merchant's Laravel database notifications, newest first — see
-  /// Api/NotificationController::index. Unlike the other endpoints, the
-  /// top-level `data` here is a raw JSON array (a serialized
-  /// DatabaseNotificationCollection), not an object, so this can't go
-  /// through unwrapData (which only handles `data` as a Map).
-  Future<List<Map<String, dynamic>>> notifications() async {
+  /// Api/NotificationController::index. `data` is now an object with
+  /// both the notification list AND unread_count together (previously
+  /// just a raw array with no count at all — the dashboard's bell icon
+  /// badge (see DashboardBanner) was fully built already, just never
+  /// fed a real number since nothing here provided one).
+  Future<({List<Map<String, dynamic>> notifications, int unreadCount})> notifications() async {
     final json = await _api.post(ApiEndpoints.notificationIndex);
     if (json['status'] == false) {
       throw ApiException(json['message']?.toString() ?? 'Could not load notifications.');
     }
-    return (json['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    final list = (data['notifications'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    return (notifications: list, unreadCount: data['unread_count'] as int? ?? 0);
   }
 
   /// Marks every notification as read — see
