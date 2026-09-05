@@ -184,49 +184,26 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                     Text('Order ID: ${_data?['order_id'] ?? _data?['id'] ?? '-'}'),
                     Text('Status code: ${_data?['code'] ?? '-'}'),
                     const SizedBox(height: 12),
-                    // Customer's pickup handoff photo + note — set once
-                    // at booking time (e.g. "left at hotel lobby with
-                    // reception, ask for Ariff"), shown here for the
-                    // whole life of the job rather than tied to any
-                    // specific step, since it's relevant from the
-                    // moment this job is assigned all the way through
-                    // to actually collecting the bag.
-                    if (_pickupPhotoUrl != null || (_pickupNote?.isNotEmpty ?? false)) ...[
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Where to collect', style: Theme.of(context).textTheme.titleSmall),
-                              const SizedBox(height: 8),
-                              if (_pickupPhotoUrl != null)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    _pickupPhotoUrl!,
-                                    height: 180,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                  ),
-                                ),
-                              if (_pickupNote?.isNotEmpty ?? false) ...[
-                                const SizedBox(height: 8),
-                                Text(_pickupNote!),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
                     _buildNavigateButtons(),
                     const Divider(height: 32),
                     if (_order?['rider_order_statuses'] != null) ...[
                       Text('Order status', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
-                      OrderStatusTimeline(statuses: _order!['rider_order_statuses'] as List<dynamic>),
+                      OrderStatusTimeline(
+                        statuses: _order!['rider_order_statuses'] as List<dynamic>,
+                        // Customer's pickup handoff photo + note — set
+                        // once at booking time (e.g. "left at hotel
+                        // lobby with reception, ask for Ariff").
+                        // Embedded under "Ready for pickup" (code 12)
+                        // specifically, since that's the step it's
+                        // actually relevant to — before the rider has
+                        // arrived to collect the bag — rather than
+                        // shown as a separate standalone card
+                        // regardless of which step the job is on.
+                        extraContentByCode: (_pickupPhotoUrl != null || (_pickupNote?.isNotEmpty ?? false))
+                            ? {'12': _PickupPhotoCard(imageUrl: _pickupPhotoUrl, note: _pickupNote)}
+                            : null,
+                      ),
                       const Divider(height: 32),
                     ],
                     if (_isDelivered) ...[
@@ -272,6 +249,51 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                     ],
                   ],
                 ),
+    );
+  }
+}
+
+/// The customer's pickup handoff photo/note, embedded under the
+/// "Ready for pickup" step in the tracking timeline above.
+class _PickupPhotoCard extends StatelessWidget {
+  const _PickupPhotoCard({this.imageUrl, this.note});
+  final String? imageUrl;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Where to collect',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 6),
+          if (imageUrl != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(
+                imageUrl!,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          if (note?.isNotEmpty ?? false) ...[
+            const SizedBox(height: 6),
+            Text(note!, style: const TextStyle(fontSize: 13)),
+          ],
+        ],
+      ),
     );
   }
 }

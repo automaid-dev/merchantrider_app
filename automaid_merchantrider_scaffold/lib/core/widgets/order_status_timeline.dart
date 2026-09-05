@@ -7,8 +7,12 @@ import 'package:flutter/material.dart';
 /// show the same kind of "here's exactly where this order is" view,
 /// just using each role's own more granular status codes.
 class OrderStatusTimeline extends StatelessWidget {
-  const OrderStatusTimeline({super.key, required this.statuses});
+  const OrderStatusTimeline({super.key, required this.statuses, this.extraContentByCode});
   final List<dynamic> statuses;
+  // Lets a caller embed a widget (e.g. the customer's pickup photo)
+  // directly under a specific step's tile, keyed by that step's code —
+  // rather than as a separate standalone card elsewhere on the screen.
+  final Map<String, Widget>? extraContentByCode;
 
   /// Display order for the rider codes — deliberately NOT plain numeric
   /// order. Code 17 "awaiting wash to complete" is a parallel/waiting
@@ -95,6 +99,7 @@ class OrderStatusTimeline extends StatelessWidget {
             isDone: entries[i]['is_done'] == true || entries[i]['is_done'] == 1,
             doneAt: _formatDate(entries[i]['done_at']?.toString()),
             isLast: i == entries.length - 1,
+            extra: extraContentByCode?[entries[i]['code']?.toString()],
           ),
       ],
     );
@@ -108,12 +113,14 @@ class _TimelineTile extends StatelessWidget {
     required this.isLast,
     this.description,
     this.doneAt,
+    this.extra,
   });
   final String title;
   final String? description;
   final bool isDone;
   final bool isLast;
   final String? doneAt;
+  final Widget? extra;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +153,10 @@ class _TimelineTile extends StatelessWidget {
                   if (isDone && doneAt != null) ...[
                     const SizedBox(height: 4),
                     Text('Completed on: $doneAt', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  ],
+                  if (extra != null) ...[
+                    const SizedBox(height: 8),
+                    extra!,
                   ],
                 ],
               ),
