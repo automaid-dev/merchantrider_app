@@ -57,6 +57,16 @@ class _MerchantOrderDetailScreenState extends ConsumerState<MerchantOrderDetailS
   Map<String, dynamic>? get _order =>
       widget.isComplete ? _data : _data?['order'] as Map<String, dynamic>?;
 
+  /// This merchant's own commission transaction for this order — the
+  /// backend already scopes `commission_transactions` on the order
+  /// detail response to this merchant's own Commission (see
+  /// Api/Merchant/OrderController::orderDetail).
+  Map<String, dynamic>? get _commissionTransaction {
+    final transactions = _order?['commission_transactions'] as List<dynamic>?;
+    if (transactions == null || transactions.isEmpty) return null;
+    return transactions.first as Map<String, dynamic>;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,6 +83,10 @@ class _MerchantOrderDetailScreenState extends ConsumerState<MerchantOrderDetailS
                       Text('Order ID: ${_data?['order_id'] ?? _data?['id'] ?? '-'}'),
                       Text('Status code: ${_data?['code'] ?? '-'}'),
                       if (_data?['quantity'] != null) Text('Bags: ${_data?['quantity']}'),
+                      if (_commissionTransaction != null) ...[
+                        const SizedBox(height: 8),
+                        _CommissionStatusBadge(transaction: _commissionTransaction!),
+                      ],
                       if (_order?['merchant_order_statuses'] != null) ...[
                         const Divider(height: 32),
                         Text('Order status', style: Theme.of(context).textTheme.titleMedium),
@@ -82,6 +96,47 @@ class _MerchantOrderDetailScreenState extends ConsumerState<MerchantOrderDetailS
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+/// Small "Settled" / "Pending" chip showing whether this order's
+/// commission has actually been paid out yet, plus the amount — same
+/// widget/reasoning as the rider order detail screen's version.
+class _CommissionStatusBadge extends StatelessWidget {
+  const _CommissionStatusBadge({required this.transaction});
+  final Map<String, dynamic> transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = double.tryParse(transaction['final_amount']?.toString() ?? '') ?? 0;
+    final isSettled = transaction['status']?.toString() == 'paid';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isSettled ? Colors.green.shade50 : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isSettled ? Colors.green.shade200 : Colors.orange.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isSettled ? Icons.check_circle_outline : Icons.schedule,
+            size: 16,
+            color: isSettled ? Colors.green.shade700 : Colors.orange.shade800,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Commission RM${amount.toStringAsFixed(2)} — ${isSettled ? 'Settled' : 'Pending'}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isSettled ? Colors.green.shade800 : Colors.orange.shade900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

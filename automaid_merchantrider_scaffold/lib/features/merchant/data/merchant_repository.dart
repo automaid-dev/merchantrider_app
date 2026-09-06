@@ -4,10 +4,23 @@ import '../../../core/api/api_data_helper.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/assign_job_model.dart';
 import '../../../core/models/promo_banner_model.dart';
+import '../../../core/models/setting_model.dart';
 
 class MerchantRepository {
   MerchantRepository(this._api);
   final ApiClient _api;
+
+  /// Public, unauthenticated endpoint (no role gating) — used here for
+  /// the company letterhead on the settlement receipt, same call the
+  /// customer app makes for its own receipts.
+  Future<AppSetting> setting() async {
+    final json = await _api.post(ApiEndpoints.setting);
+    // SettingController::setting returns the row under a `setting` key,
+    // not `data` — see the matching comment on the customer app's
+    // CustomerRepository.setting().
+    final data = json['setting'] as Map<String, dynamic>? ?? {};
+    return AppSetting.fromJson(data);
+  }
 
   /// Returns (isDuty, todayJobs, incomingJobs). See
   /// Api/Merchant/HomeController::home — jobs are pre-filtered to
@@ -174,6 +187,27 @@ class MerchantRepository {
             as List<dynamic>? ??
         [])
         .cast<Map<String, dynamic>>();
+  }
+
+  /// Every payout ever settled to this merchant, newest first — used
+  /// for the Settlement History list screen.
+  Future<List<Map<String, dynamic>>> settlementList() async {
+    final json = await _api.post(ApiEndpoints.merchantSettlementList);
+    return (unwrapData(json, fallback: 'Could not load settlement history.')['settlements']
+            as List<dynamic>? ??
+        [])
+        .cast<Map<String, dynamic>>();
+  }
+
+  /// Full breakdown of one settlement (transactions covered, itemized
+  /// deductions, bank reference) — used to build the receipt screen
+  /// and its downloadable PDF.
+  Future<Map<String, dynamic>> settlementDetail(String hashslug) async {
+    final json = await _api.post(ApiEndpoints.merchantSettlementDetail, data: {
+      'hashslug': hashslug,
+    });
+    return unwrapData(json, fallback: 'Could not load settlement detail.')['settlement']
+        as Map<String, dynamic>;
   }
 
   // NOTE: reApplyUpdate is a multipart form (IC front/back, SSM cert,

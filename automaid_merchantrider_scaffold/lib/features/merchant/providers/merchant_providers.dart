@@ -2,10 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
 import '../../../core/models/promo_banner_model.dart';
+import '../../../core/models/setting_model.dart';
 import '../data/merchant_repository.dart';
 
 final merchantRepositoryProvider = Provider<MerchantRepository>((ref) {
   return MerchantRepository(ref.read(apiClientProvider));
+});
+
+/// Company letterhead + pricing config — same public /setting endpoint
+/// the customer app's appSettingProvider reads, used here for the
+/// settlement receipt's letterhead.
+final merchantSettingProvider = FutureProvider.autoDispose<AppSetting>((ref) {
+  return ref.read(merchantRepositoryProvider).setting();
 });
 
 /// Admin-managed promotional banners for the merchant dashboard carousel.
@@ -78,3 +86,15 @@ class MerchantHomeNotifier extends AutoDisposeAsyncNotifier<MerchantHomeState> {
 final merchantActivityHistoryProvider = FutureProvider.autoDispose((ref) {
   return ref.read(merchantRepositoryProvider).activityHistory();
 });
+
+/// Every payout ever settled to this merchant, newest first.
+final merchantSettlementListProvider = FutureProvider.autoDispose((ref) {
+  return ref.read(merchantRepositoryProvider).settlementList();
+});
+
+/// Full detail for one settlement, keyed by its hashslug.
+final merchantSettlementDetailProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, hashslug) {
+  return ref.read(merchantRepositoryProvider).settlementDetail(hashslug);
+});
+

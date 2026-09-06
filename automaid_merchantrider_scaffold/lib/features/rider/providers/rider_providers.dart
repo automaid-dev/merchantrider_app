@@ -2,10 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
 import '../../../core/models/promo_banner_model.dart';
+import '../../../core/models/setting_model.dart';
 import '../data/rider_repository.dart';
 
 final riderRepositoryProvider = Provider<RiderRepository>((ref) {
   return RiderRepository(ref.read(apiClientProvider));
+});
+
+/// Company letterhead + pricing config — same public /setting endpoint
+/// the customer app's appSettingProvider reads, used here for the
+/// settlement receipt's letterhead.
+final riderSettingProvider = FutureProvider.autoDispose<AppSetting>((ref) {
+  return ref.read(riderRepositoryProvider).setting();
 });
 
 /// Admin-managed promotional banners for the rider dashboard carousel.
@@ -86,3 +94,17 @@ class RiderHomeNotifier extends AutoDisposeAsyncNotifier<RiderHomeState> {
 final riderActivityHistoryProvider = FutureProvider.autoDispose((ref) {
   return ref.read(riderRepositoryProvider).activityHistory();
 });
+
+/// Every payout ever settled to this rider, newest first.
+final riderSettlementListProvider = FutureProvider.autoDispose((ref) {
+  return ref.read(riderRepositoryProvider).settlementList();
+});
+
+/// Full detail for one settlement, keyed by its hashslug — a family
+/// provider since the receipt screen is reached with a specific
+/// settlement in mind, not the whole list.
+final riderSettlementDetailProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, hashslug) {
+  return ref.read(riderRepositoryProvider).settlementDetail(hashslug);
+});
+

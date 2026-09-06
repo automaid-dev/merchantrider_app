@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../providers/rider_providers.dart';
 import 'rider_profile_edit_screen.dart';
+import 'rider_settlement_list_screen.dart';
 
 /// Wraps POST /rider/profile (RiderProfileController::profile), which
 /// eager-loads wallet.transactions and activities. Tap the edit icon to
@@ -125,6 +126,14 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Settlement History'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const RiderSettlementListScreen()),
+                      ),
                     ),
                     const Divider(height: 32),
                     Text('Recent activity', style: Theme.of(context).textTheme.titleMedium),

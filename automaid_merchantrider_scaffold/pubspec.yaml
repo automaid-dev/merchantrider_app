@@ -42,6 +42,11 @@ dependencies:
   # Brand type (friendly, rounded — matches the LaundryBar/Automaid mascot)
   google_fonts: ^6.2.1
 
+  # Settlement receipt PDF (view + download) — same packages/versions
+  # as the customer app's receipt_pdf.dart
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

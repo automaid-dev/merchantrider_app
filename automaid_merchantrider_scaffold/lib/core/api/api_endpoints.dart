@@ -125,6 +125,8 @@ class ApiEndpoints {
   static const riderOrderDetail = '/rider/order/detail';
   static const riderActivityHistory = '/rider/activity/history';
   static const riderReapplyUpdate = '/rider/re-apply/update';
+  static const riderSettlementList = '/rider/settlement/list';
+  static const riderSettlementDetail = '/rider/settlement/detail';
 
   // ---- Merchant ----
   static const merchantHome = '/merchant/home';
@@ -140,4 +142,6 @@ class ApiEndpoints {
   static const merchantOrderDetail = '/merchant/order/detail';
   static const merchantActivityHistory = '/merchant/activity/history';
   static const merchantReapplyUpdate = '/merchant/re-apply/update';
+  static const merchantSettlementList = '/merchant/settlement/list';
+  static const merchantSettlementDetail = '/merchant/settlement/detail';
 }

@@ -84,6 +84,17 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
   String? get _pickupPhotoUrl => _booking?['pickup_photo_url']?.toString();
   String? get _pickupNote => _booking?['pickup_note']?.toString();
 
+  /// This rider's own commission transaction for this order — the
+  /// backend already scopes `commission_transactions` on the order
+  /// detail response to this rider's own Commission (see
+  /// OrderController::orderDetail), so there's no risk of showing
+  /// another party's cut here.
+  Map<String, dynamic>? get _commissionTransaction {
+    final transactions = _order?['commission_transactions'] as List<dynamic>?;
+    if (transactions == null || transactions.isEmpty) return null;
+    return transactions.first as Map<String, dynamic>;
+  }
+
   Map<String, dynamic>? get _merchant => _order?['merchant'] as Map<String, dynamic>?;
 
   Map<String, dynamic>? get _merchantUser => _merchant?['user'] as Map<String, dynamic>?;
@@ -183,6 +194,10 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                   children: [
                     Text('Order ID: ${_data?['order_id'] ?? _data?['id'] ?? '-'}'),
                     Text('Status code: ${_data?['code'] ?? '-'}'),
+                    if (_commissionTransaction != null) ...[
+                      const SizedBox(height: 8),
+                      _CommissionStatusBadge(transaction: _commissionTransaction!),
+                    ],
                     const SizedBox(height: 12),
                     _buildNavigateButtons(),
                     const Divider(height: 32),
@@ -249,6 +264,48 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                     ],
                   ],
                 ),
+    );
+  }
+}
+
+/// Small "Settled" / "Pending" chip showing whether this order's
+/// commission has actually been paid out yet, plus the amount — so
+/// the rider doesn't have to go dig through Settlement History just
+/// to check on one specific order.
+class _CommissionStatusBadge extends StatelessWidget {
+  const _CommissionStatusBadge({required this.transaction});
+  final Map<String, dynamic> transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = double.tryParse(transaction['final_amount']?.toString() ?? '') ?? 0;
+    final isSettled = transaction['status']?.toString() == 'paid';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isSettled ? Colors.green.shade50 : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isSettled ? Colors.green.shade200 : Colors.orange.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isSettled ? Icons.check_circle_outline : Icons.schedule,
+            size: 16,
+            color: isSettled ? Colors.green.shade700 : Colors.orange.shade800,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Commission RM${amount.toStringAsFixed(2)} — ${isSettled ? 'Settled' : 'Pending'}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isSettled ? Colors.green.shade800 : Colors.orange.shade900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

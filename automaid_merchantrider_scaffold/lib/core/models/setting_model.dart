@@ -10,6 +10,15 @@ class AppSetting {
   final double discountPercent;
   final double discountLimit;
   final double birthdayRewardAmount;
+  // Company letterhead shown on settlement receipts — same fields the
+  // customer app's receipts already pull from Settings > Company
+  // Information, all optional since a fresh install may not have them
+  // set yet.
+  final String? companyName;
+  final String? companyAddress;
+  final String? companyPhone;
+  final String? companyEmail;
+  final String? companyRegistrationNo;
 
   AppSetting({
     required this.washFee,
@@ -21,6 +30,11 @@ class AppSetting {
     required this.discountPercent,
     required this.discountLimit,
     required this.birthdayRewardAmount,
+    this.companyName,
+    this.companyAddress,
+    this.companyPhone,
+    this.companyEmail,
+    this.companyRegistrationNo,
   });
 
   factory AppSetting.fromJson(Map<String, dynamic> json) => AppSetting(
@@ -34,6 +48,11 @@ class AppSetting {
         discountPercent: _d(json['discount_percent']),
         discountLimit: _d(json['discount_limit']),
         birthdayRewardAmount: _d(json['birthday_reward_amount']),
+        companyName: json['company_name']?.toString(),
+        companyAddress: json['company_address']?.toString(),
+        companyPhone: json['company_phone']?.toString(),
+        companyEmail: json['company_email']?.toString(),
+        companyRegistrationNo: json['company_registration_no']?.toString(),
       );
 
   static double _d(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
