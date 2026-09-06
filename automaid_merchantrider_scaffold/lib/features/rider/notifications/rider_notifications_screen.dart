@@ -78,7 +78,20 @@ class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScr
                         separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final n = _notifications![i];
-                          final data = n['data'] as Map<String, dynamic>? ?? {};
+                          // `data` should always be a JSON object
+                          // ({title, message, ...}), but a handful of
+                          // older rows in the notifications table (from
+                          // earlier dev/test notification sends, before
+                          // this screen's format was settled) stored it
+                          // as a plain JSON array instead — `as Map?`
+                          // throws a type error on those rather than
+                          // returning null, since the cast target type
+                          // itself doesn't match at all. Checking the
+                          // runtime type first means one malformed old
+                          // row degrades to a generic label instead of
+                          // crashing the entire notifications screen.
+                          final rawData = n['data'];
+                          final data = rawData is Map<String, dynamic> ? rawData : <String, dynamic>{};
                           final title = data['title']?.toString() ?? 'Update';
                           final message = data['message']?.toString() ?? '';
                           final isUnread = n['read_at'] == null;

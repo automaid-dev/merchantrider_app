@@ -78,7 +78,14 @@ class _MerchantNotificationsScreenState extends ConsumerState<MerchantNotificati
                         separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final n = _notifications![i];
-                          final data = n['data'] as Map<String, dynamic>? ?? {};
+                          // Same defensive guard as
+                          // rider_notifications_screen.dart — a
+                          // handful of older rows stored `data` as a
+                          // plain JSON array instead of an object,
+                          // which crashes an unconditional `as Map?`
+                          // cast rather than returning null.
+                          final rawData = n['data'];
+                          final data = rawData is Map<String, dynamic> ? rawData : <String, dynamic>{};
                           final title = data['title']?.toString() ?? 'Update';
                           final message = data['message']?.toString() ?? '';
                           final isUnread = n['read_at'] == null;
