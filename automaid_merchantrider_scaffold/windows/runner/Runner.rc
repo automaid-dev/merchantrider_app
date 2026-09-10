@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.paywash.automaid" "\0"
+            VALUE "CompanyName", "paynwash.automaid.merchantrider" "\0"
             VALUE "FileDescription", "merchantrider" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "merchantrider" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.paywash.automaid. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 paynwash.automaid.merchantrider. All rights reserved." "\0"
             VALUE "OriginalFilename", "merchantrider.exe" "\0"
             VALUE "ProductName", "merchantrider" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

@@ -8,7 +8,7 @@
 PRODUCT_NAME = merchantrider
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.paywash.automaid.merchantrider
+PRODUCT_BUNDLE_IDENTIFIER = paynwash.automaid.merchantrider
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.paywash.automaid. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 paynwash.automaid.merchantrider. All rights reserved.
