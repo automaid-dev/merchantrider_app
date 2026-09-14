@@ -45,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!result.status && result.message != null) {
         // e.g. "Registration is not complete." / "Status is inactive."
         setState(() => _errorMessage = result.message);
+        _showErrorSnackBar(result.message!);
       }
       // On success, go_router's redirect (see app_router.dart) sends the
       // user to their role's home automatically once auth state updates.
@@ -55,11 +56,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ? 'Incorrect email or password. Please try again.'
           : e.message;
       setState(() => _errorMessage = message);
+      _showErrorSnackBar(message);
     } catch (e) {
-      setState(() => _errorMessage = 'Something went wrong. Please try again.');
+      const message = 'Something went wrong. Please try again.';
+      setState(() => _errorMessage = message);
+      _showErrorSnackBar(message);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  /// Shown alongside the inline red text below the password field, not
+  /// instead of it — a SnackBar can't be missed regardless of scroll
+  /// position or anything about the inline text's own rendering.
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red[700]),
+    );
   }
 
   @override
