@@ -160,21 +160,90 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
 
   bool get _allDocumentsAttached => _icFront != null && _licenseFront != null && _jpjGrant != null;
 
+  /// Explicit, direct check of every required field's actual value —
+  /// deliberately NOT relying on TextFormField's own inline red-text
+  /// rendering, which wasn't reliably showing for some sections even
+  /// after confirming the validators themselves were correct and
+  /// scrolling to the top. This computes the same rules independently
+  /// and returns a plain list of what's missing, so _submitForm can
+  /// show it in a dialog no rendering quirk can hide.
+  List<String> _collectMissingFields() {
+    final missing = <String>[];
+
+    if (_name.text.trim().isEmpty) missing.add('Full Name');
+    if (!_email.text.contains('@')) missing.add('Email');
+    if (_mobile.text.replaceAll(RegExp(r'\D'), '').length < 9) missing.add('Mobile phone');
+    if (_idType == null) missing.add('ID Type');
+    if (_icno.text.trim().isEmpty) missing.add('${_idType ?? "ID"} Number');
+
+    if (_addressLine1.text.trim().isEmpty) missing.add('Address line 1');
+    if (_postcode.text.trim().isEmpty) missing.add('Postcode');
+    if (_city.text.trim().isEmpty) missing.add('City');
+    if (_selectedState == null) missing.add('State');
+    if (_country.text.trim().isEmpty) missing.add('Country');
+    if (_pinnedLocation == null) missing.add('Pinned map location');
+
+    if (_emergencyName.text.trim().isEmpty) missing.add('Emergency contact name');
+    if (_emergencyPhone.text.replaceAll(RegExp(r'\D'), '').length < 9) {
+      missing.add('Emergency contact phone');
+    }
+    if (_emergencyRelation.text.trim().isEmpty) missing.add('Emergency contact relation');
+
+    if (_vehicleType == null) missing.add('Vehicle type');
+    if (_plateNo.text.trim().isEmpty) missing.add('Plate number');
+    if (_vehicleMake.text.trim().isEmpty) missing.add('Vehicle make');
+    if (_vehicleModel.text.trim().isEmpty) missing.add('Vehicle model');
+    if (_vehicleColor == 'Other' && _vehicleColorOther.text.trim().isEmpty) {
+      missing.add('Vehicle colour (other)');
+    }
+
+    if (_bankName == null) missing.add('Bank name');
+    if (_bankNo.text.trim().isEmpty) missing.add('Bank account number');
+
+    if (_password.text.length < 8) missing.add('Password (at least 8 characters)');
+    if (_confirmPassword.text != _password.text || _confirmPassword.text.isEmpty) {
+      missing.add('Confirm password (must match Password)');
+    }
+
+    return missing;
+  }
+
+  Future<void> _showMissingFieldsDialog(List<String> missing) {
+    return showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Please complete these fields'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: missing.map((f) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text('•  $f'),
+            )).toList(),
+          ),
+        ),
+        actions: [
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) {
-      // Jump back to the top so every error — including ones in
-      // Personal Information/Address/Emergency Contact, which are
-      // easy to scroll past while filling in the later sections — is
-      // actually visible, not just correctly set but off-screen.
+    // Still run Form's own validate() too — sets inline red text
+    // wherever it does render correctly, as a second layer on top of
+    // the explicit dialog below, not a replacement for it.
+    _formKey.currentState?.validate();
+
+    final missing = _collectMissingFields();
+    if (missing.isNotEmpty) {
       _formScrollController.animateTo(
         0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
-      return;
-    }
-    if (_pinnedLocation == null) {
-      setState(() => _error = 'Please pin your address on the map.');
+      await _showMissingFieldsDialog(missing);
       return;
     }
     setState(() => _step = 1);

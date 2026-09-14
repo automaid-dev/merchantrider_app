@@ -17,12 +17,24 @@ import '../../features/merchant/home/merchant_home_screen.dart';
 /// entity is still awaiting admin approval (User.status == 'onboarding')
 /// is sent to /pending instead of either dashboard.
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authControllerProvider);
-
+  // Deliberately NOT `ref.watch(authControllerProvider)` here — this
+  // builder should only ever run once, producing a single GoRouter
+  // instance for the app's whole lifetime. `refreshListenable` below
+  // is the correct, sole mechanism for telling that one instance to
+  // re-run its `redirect` callback whenever auth state changes; each
+  // call reads fresh state itself via `ref.read`.
+  //
+  // Watching the auth state here too was a real bug: it caused the
+  // ENTIRE GoRouter (not just the redirect decision) to be torn down
+  // and rebuilt on every login/logout, which is a well-documented way
+  // for a redirect to silently fail to fire right after the state
+  // change that was supposed to trigger it — matching exactly what
+  // was reported (login succeeds, screen just stays on /login).
   return GoRouter(
     initialLocation: '/login',
     refreshListenable: _AuthListenable(ref),
     redirect: (context, state) {
+      final authState = ref.read(authControllerProvider);
       final loggingIn = state.matchedLocation == '/login';
       final registering = state.matchedLocation == '/register';
       final preAuth = loggingIn || registering;
