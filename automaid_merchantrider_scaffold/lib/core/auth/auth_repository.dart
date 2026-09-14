@@ -106,13 +106,24 @@ class AuthRepository {
     String? bankNo,
     // Verification documents — the backend accepts these in the same
     // multipart request as everything else (RiderController::register),
-    // not a separate upload call. All 5 required by the flow spec (JPJ
-    // grant included — previously missing from the old app).
+    // not a separate upload call. Front-only now, per the guided
+    // per-document upload flow (Identity Card / Driving License / Road
+    // Tax) — back-side fields are still accepted by the backend if
+    // ever sent (none of ic_back/license_back/jpj_grant are `required`
+    // server-side, just optionally-validated-if-present), but are no
+    // longer collected in this flow.
     required String icFrontPath,
-    required String icBackPath,
+    String? icBackPath,
     required String licenseFrontPath,
-    required String licenseBackPath,
+    String? licenseBackPath,
     required String jpjGrantPath,
+    // Single combined flags — true only once every checkbox on the
+    // respective screen (Declarations / Consents) was checked. See
+    // RiderController::register: recorded as-is even if false rather
+    // than rejected server-side, since the app already gates
+    // submission behind these via a disabled Next button.
+    required bool declarationAccepted,
+    required bool consentAccepted,
   }) async {
     final formData = FormData.fromMap({
       'name': name,
@@ -144,10 +155,12 @@ class AuthRepository {
       'latitude': latitude,
       'longitude': longitude,
       'ic_front': await MultipartFile.fromFile(icFrontPath),
-      'ic_back': await MultipartFile.fromFile(icBackPath),
+      if (icBackPath != null) 'ic_back': await MultipartFile.fromFile(icBackPath),
       'license_front': await MultipartFile.fromFile(licenseFrontPath),
-      'license_back': await MultipartFile.fromFile(licenseBackPath),
+      if (licenseBackPath != null) 'license_back': await MultipartFile.fromFile(licenseBackPath),
       'jpj_grant': await MultipartFile.fromFile(jpjGrantPath),
+      'declaration_accepted': declarationAccepted,
+      'consent_accepted': consentAccepted,
     });
     // Longer timeout than the default 15s — this uploads up to 5 photos
     // (IC front/back, license front/back, JPJ grant) plus all the text

@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_providers.dart';
 import '../../core/widgets/form_section_card.dart';
@@ -33,6 +35,15 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
   int? _userId;
 
   final _formKey = GlobalKey<FormState>();
+  // No auto-scroll-to-error by default in Flutter — without this, a
+  // validation failure on an early section (Personal Information,
+  // Address, Emergency Contact) sets its red error text correctly, but
+  // if the person has already scrolled down to fill in Vehicle/Bank/
+  // Password near the bottom, that error is invisible off-screen. Easy
+  // to mistake for "validation isn't happening on those fields" when
+  // it actually did — it's just not visible from the current scroll
+  // position.
+  final _formScrollController = ScrollController();
 
   // Personal info
   final _name = TextEditingController();
@@ -71,8 +82,33 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
 
-  // Documents
-  File? _icFront, _icBack, _licenseFront, _licenseBack, _jpjGrant;
+  // Documents — front-only now, per the guided per-document upload
+  // flow. Back-side fields still exist on the backend (optionally) but
+  // are no longer collected here.
+  File? _icFront, _licenseFront, _jpjGrant;
+  int _docSubStep = 0; // 0=IC, 1=License, 2=RoadTax, 3=Declarations, 4=Consents
+
+  // Declarations (Pengisytiharan) — all 5 required before Consents.
+  bool _decl1 = false, _decl2 = false, _decl3 = false, _decl4 = false, _decl5 = false;
+  bool get _allDeclarationsAccepted => _decl1 && _decl2 && _decl3 && _decl4 && _decl5;
+
+  // Consents (Persetujuan) — all 4 required before OTP is sent.
+  bool _consent1 = false, _consent2 = false, _consent3 = false, _consent4 = false;
+  bool get _allConsentsAccepted => _consent1 && _consent2 && _consent3 && _consent4;
+
+  late final _privacyNoticeRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openLink('https://lbunlimitedwash.com/policy/privacy_notice.html');
+  late final _deliveryTermsRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openLink('https://lbunlimitedwash.com/policy/terms_of_svc_delivery.html');
+  late final _paymentTermsRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openLink('https://lbunlimitedwash.com/policy/terms_of_service_payments.html');
+  late final _codeOfConductRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openLink('https://lbunlimitedwash.com/policy/driver_code_of_conduct.html');
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
 
   // OTP
   final _otp = TextEditingController();
@@ -90,6 +126,11 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
     ]) {
       c.dispose();
     }
+    _privacyNoticeRecognizer.dispose();
+    _deliveryTermsRecognizer.dispose();
+    _paymentTermsRecognizer.dispose();
+    _codeOfConductRecognizer.dispose();
+    _formScrollController.dispose();
     super.dispose();
   }
 
@@ -117,11 +158,21 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
     if (picked != null) setState(() => onPicked(File(picked.path)));
   }
 
-  bool get _allDocumentsAttached =>
-      _icFront != null && _icBack != null && _licenseFront != null && _licenseBack != null && _jpjGrant != null;
+  bool get _allDocumentsAttached => _icFront != null && _licenseFront != null && _jpjGrant != null;
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Jump back to the top so every error — including ones in
+      // Personal Information/Address/Emergency Contact, which are
+      // easy to scroll past while filling in the later sections — is
+      // actually visible, not just correctly set but off-screen.
+      _formScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
     if (_pinnedLocation == null) {
       setState(() => _error = 'Please pin your address on the map.');
       return;
@@ -131,7 +182,15 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
 
   Future<void> _submitRegistration() async {
     if (!_allDocumentsAttached) {
-      setState(() => _error = 'Please attach all 5 documents before continuing.');
+      setState(() => _error = 'Please attach all 3 documents before continuing.');
+      return;
+    }
+    if (!_allDeclarationsAccepted) {
+      setState(() => _error = 'Please accept all declarations before continuing.');
+      return;
+    }
+    if (!_allConsentsAccepted) {
+      setState(() => _error = 'Please accept all consents before continuing.');
       return;
     }
     setState(() {
@@ -163,14 +222,14 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
             vehicleModel: _vehicleModel.text.trim(),
             vehicleColor: _vehicleColor == 'Other' ? _vehicleColorOther.text.trim() : _vehicleColor,
             bankName: _bankName,
-            bankNo: _bankNo.text.trim().isEmpty ? null : _bankNo.text.trim(),
+            bankNo: _bankNo.text.trim(),
             latitude: _pinnedLocation!.latitude,
             longitude: _pinnedLocation!.longitude,
             icFrontPath: _icFront!.path,
-            icBackPath: _icBack!.path,
             licenseFrontPath: _licenseFront!.path,
-            licenseBackPath: _licenseBack!.path,
             jpjGrantPath: _jpjGrant!.path,
+            declarationAccepted: _allDeclarationsAccepted,
+            consentAccepted: _allConsentsAccepted,
           );
       if (result.status && result.userId != null) {
         setState(() {
@@ -246,8 +305,18 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
     return Form(
       key: _formKey,
       child: ListView(
+        controller: _formScrollController,
         padding: const EdgeInsets.all(16),
         children: [
+          Text('New rider registration', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text('Tell us about yourself.', style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 4),
+          Text(
+            'All fields with * are required.',
+            style: TextStyle(color: Colors.grey[600], fontSize: 12.5, fontStyle: FontStyle.italic),
+          ),
+          const SizedBox(height: 16),
           FormSectionCard(
             icon: Icons.person_outline,
             title: 'Personal Information',
@@ -369,6 +438,7 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
           FormSectionCard(
             icon: Icons.two_wheeler_outlined,
             title: 'Vehicle Information',
+            description: 'Choose your service preference.',
             children: [
               DropdownButtonFormField<String>(
                 value: _vehicleType,
@@ -409,7 +479,7 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
           ),
           FormSectionCard(
             icon: Icons.account_balance_outlined,
-            title: 'Bank Information (optional)',
+            title: 'Bank Information',
             children: [
               Consumer(
                 builder: (context, ref, _) {
@@ -417,9 +487,10 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
                   return banksAsync.when(
                     data: (banks) => DropdownButtonFormField<String>(
                       value: _bankName,
-                      decoration: const InputDecoration(labelText: 'Bank name'),
+                      decoration: const InputDecoration(labelText: 'Bank name *'),
                       items: banks.map((b) => DropdownMenuItem(value: b.name, child: Text(b.name))).toList(),
                       onChanged: (v) => setState(() => _bankName = v),
+                      validator: (v) => v == null ? 'Required' : null,
                     ),
                     loading: () => const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
@@ -431,7 +502,8 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
               ),
               TextFormField(
                 controller: _bankNo,
-                decoration: const InputDecoration(labelText: 'Bank account number'),
+                decoration: const InputDecoration(labelText: 'Bank account number *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
             ],
           ),
@@ -466,51 +538,108 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
   }
 
   Widget _buildDocumentsStep() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text('RIDER VERIFICATION', style: TextStyle(color: Colors.grey, fontSize: 12)),
-        const SizedBox(height: 8),
-        _DocumentTile(
-          label: 'Identity Card (Front)',
-          file: _icFront,
-          onTap: () => _pickDocument((f) => _icFront = f),
-        ),
-        _DocumentTile(
-          label: 'Identity Card (Back)',
-          file: _icBack,
-          onTap: () => _pickDocument((f) => _icBack = f),
-        ),
-        _DocumentTile(
-          label: 'Driving License (Front)',
-          file: _licenseFront,
-          onTap: () => _pickDocument((f) => _licenseFront = f),
-        ),
-        _DocumentTile(
-          label: 'Driving License (Back)',
-          file: _licenseBack,
-          onTap: () => _pickDocument((f) => _licenseBack = f),
-        ),
-        _DocumentTile(
-          label: 'JPJ Grant',
-          file: _jpjGrant,
-          onTap: () => _pickDocument((f) => _jpjGrant = f),
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: Colors.red)),
-        ],
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _isSubmitting ? null : _submitRegistration,
-          child: _isSubmitting
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Continue'),
-        ),
-        const SizedBox(height: 8),
-        TextButton(onPressed: () => setState(() => _step = 0), child: const Text('Back')),
-      ],
-    );
+    // A mini 5-screen wizard inside Step 2 — Identity Card -> Driving
+    // License -> Road Tax -> Declarations -> Consents. Each document
+    // screen only advances once that specific document is attached;
+    // Declarations/Consents only advance once every checkbox on that
+    // screen is checked. Registration (and the OTP send that triggers)
+    // only happens after Consents' "Continue" — i.e. after everything
+    // in this whole step is accepted, not partway through.
+    switch (_docSubStep) {
+      case 0:
+        return _DocumentGuidelineStep(
+          title: 'Identity Card Upload Guidelines',
+          sampleImageAsset: 'assets/images/identity_card_sample.jpg',
+          requirements: const [
+            'Age 18 – 69 years old.',
+            'Blue Malaysian MyKad, full-color, showing all 4 edges of the '
+                'card and personal information (front of the MyKad).',
+            'All text is readable and unobstructed.',
+          ],
+          thingsToAvoid: const [
+            'Not a Malaysian Blue MyKad.',
+            'Black & white image.',
+          ],
+          uploadedFile: _icFront,
+          onUpload: () => _pickDocument((f) => _icFront = f),
+          onNext: _icFront == null ? null : () => setState(() => _docSubStep = 1),
+          onBack: () => setState(() => _step = 0),
+        );
+      case 1:
+        return _DocumentGuidelineStep(
+          title: 'Driving License Upload Guidelines',
+          sampleImageAsset: 'assets/images/lesen_memandu_sample.jpg',
+          requirements: const [
+            'Full-color license showing all 4 edges of the card with '
+                'personal detail (front of the Driving License).',
+            'Must be valid (not expired).',
+            'Must be class B, B1 or B2, D.',
+            'All text is readable and not blurred.',
+          ],
+          thingsToAvoid: const [
+            'L License.',
+            'Black & white image.',
+          ],
+          uploadedFile: _licenseFront,
+          onUpload: () => _pickDocument((f) => _licenseFront = f),
+          onNext: _licenseFront == null ? null : () => setState(() => _docSubStep = 2),
+          onBack: () => setState(() => _docSubStep = 0),
+        );
+      case 2:
+        return _DocumentGuidelineStep(
+          title: 'Road Tax Upload Guidelines',
+          sampleImageAsset: 'assets/images/roadtax_sample.png',
+          requirements: const [
+            'Full-color road tax showing all 4 edges of the card with the '
+                'detail (front of the Road Tax).',
+            'Must be valid (not expired).',
+            'All text is readable and not blurred.',
+          ],
+          thingsToAvoid: const [
+            'Blurry image.',
+            'Black & white image.',
+          ],
+          uploadedFile: _jpjGrant,
+          onUpload: () => _pickDocument((f) => _jpjGrant = f),
+          onNext: _jpjGrant == null ? null : () => setState(() => _docSubStep = 3),
+          onBack: () => setState(() => _docSubStep = 1),
+        );
+      case 3:
+        return _DeclarationsStep(
+          decl1: _decl1,
+          decl2: _decl2,
+          decl3: _decl3,
+          decl4: _decl4,
+          decl5: _decl5,
+          onChanged1: (v) => setState(() => _decl1 = v),
+          onChanged2: (v) => setState(() => _decl2 = v),
+          onChanged3: (v) => setState(() => _decl3 = v),
+          onChanged4: (v) => setState(() => _decl4 = v),
+          onChanged5: (v) => setState(() => _decl5 = v),
+          onNext: _allDeclarationsAccepted ? () => setState(() => _docSubStep = 4) : null,
+          onBack: () => setState(() => _docSubStep = 2),
+        );
+      case 4:
+      default:
+        return _ConsentsStep(
+          consent1: _consent1,
+          consent2: _consent2,
+          consent3: _consent3,
+          consent4: _consent4,
+          onChanged1: (v) => setState(() => _consent1 = v),
+          onChanged2: (v) => setState(() => _consent2 = v),
+          onChanged3: (v) => setState(() => _consent3 = v),
+          onChanged4: (v) => setState(() => _consent4 = v),
+          privacyNoticeRecognizer: _privacyNoticeRecognizer,
+          deliveryTermsRecognizer: _deliveryTermsRecognizer,
+          paymentTermsRecognizer: _paymentTermsRecognizer,
+          codeOfConductRecognizer: _codeOfConductRecognizer,
+          onNext: (_allConsentsAccepted && !_isSubmitting) ? _submitRegistration : null,
+          isSubmitting: _isSubmitting,
+          onBack: () => setState(() => _docSubStep = 3),
+          error: _error,
+        );
+    }
   }
 
   Widget _buildOtpStep() {
@@ -541,25 +670,275 @@ class _RegisterRiderScreenState extends ConsumerState<RegisterRiderScreen> {
   }
 }
 
-class _DocumentTile extends StatelessWidget {
-  const _DocumentTile({required this.label, required this.file, required this.onTap});
-  final String label;
-  final File? file;
-  final VoidCallback onTap;
+/// One guided document-upload screen — sample photo, requirements,
+/// things to avoid, an Upload button, and Next (disabled until
+/// uploaded). Reused for all 3 documents (Identity Card / Driving
+/// License / Road Tax) in _buildDocumentsStep, since the layout is
+/// identical for each — only the copy, sample image, and callbacks
+/// differ.
+class _DocumentGuidelineStep extends StatelessWidget {
+  const _DocumentGuidelineStep({
+    required this.title,
+    required this.sampleImageAsset,
+    required this.requirements,
+    required this.thingsToAvoid,
+    required this.uploadedFile,
+    required this.onUpload,
+    required this.onNext,
+    required this.onBack,
+    this.nextLabel = 'Next',
+    this.isSubmitting = false,
+    this.error,
+  });
+
+  final String title;
+  final String sampleImageAsset;
+  final List<String> requirements;
+  final List<String> thingsToAvoid;
+  final File? uploadedFile;
+  final VoidCallback onUpload;
+  final VoidCallback? onNext; // null = disabled (not yet uploaded)
+  final VoidCallback onBack;
+  final String nextLabel;
+  final bool isSubmitting;
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(
-          file != null ? Icons.check_circle : Icons.camera_alt_outlined,
-          color: file != null ? Colors.green : null,
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        Text('Sample photo', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[800])),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(sampleImageAsset, width: double.infinity, fit: BoxFit.contain),
         ),
-        title: Text(label),
-        subtitle: Text(file != null ? 'Captured — tap to retake' : 'Tap to take photo'),
-        onTap: onTap,
+        const SizedBox(height: 20),
+        const Text('Requirements:', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        for (int i = 0; i < requirements.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('${i + 1}. ${requirements[i]}', style: const TextStyle(fontSize: 13.5)),
+          ),
+        const SizedBox(height: 14),
+        Text('Things to avoid:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red[700])),
+        const SizedBox(height: 6),
+        for (int i = 0; i < thingsToAvoid.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              '${i + 1}. ${thingsToAvoid[i]}',
+              style: TextStyle(fontSize: 13.5, color: Colors.red[700]),
+            ),
+          ),
+        const SizedBox(height: 22),
+        OutlinedButton.icon(
+          onPressed: onUpload,
+          icon: Icon(
+            uploadedFile != null ? Icons.check_circle : Icons.upload_file_outlined,
+            color: uploadedFile != null ? Colors.green : null,
+          ),
+          label: Text(uploadedFile != null ? 'Document uploaded — tap to retake' : 'Upload Document'),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 12),
+          Text(error!, style: const TextStyle(color: Colors.red)),
+        ],
+        const SizedBox(height: 22),
+        FilledButton(
+          onPressed: onNext,
+          child: isSubmitting
+              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(nextLabel),
+        ),
+        const SizedBox(height: 8),
+        TextButton(onPressed: onBack, child: const Text('Back')),
+      ],
+    );
+  }
+}
+
+/// Declarations (Pengisytiharan) — 5 plain-text checkboxes, all
+/// required before Consents. No links here (unlike _ConsentsStep) —
+/// these are statements the rider affirms, not documents to review.
+class _DeclarationsStep extends StatelessWidget {
+  const _DeclarationsStep({
+    required this.decl1,
+    required this.decl2,
+    required this.decl3,
+    required this.decl4,
+    required this.decl5,
+    required this.onChanged1,
+    required this.onChanged2,
+    required this.onChanged3,
+    required this.onChanged4,
+    required this.onChanged5,
+    required this.onNext,
+    required this.onBack,
+  });
+
+  final bool decl1, decl2, decl3, decl4, decl5;
+  final ValueChanged<bool> onChanged1, onChanged2, onChanged3, onChanged4, onChanged5;
+  final VoidCallback? onNext;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (decl1, onChanged1, 'Saya tidak pernah disabitkan dalam mana-mana kes mahkamah.'),
+      (
+        decl2,
+        onChanged2,
+        'Saya berjanji untuk mengendalikan kenderaan saya dengan selamat dan '
+            'mematuhi semua undang-undang lalu lintas jalan raya Malaysia pada '
+            'setiap masa.'
       ),
+      (
+        decl3,
+        onChanged3,
+        'Saya tidak mempunyai sebarang keadaan kesihatan yang mungkin '
+            'menyebabkan saya tidak dapat memandu/menunggang dengan selamat.'
+      ),
+      (
+        decl4,
+        onChanged4,
+        'Saya membenarkan LB Pickup and Delivery dan ejen atau wakilnya untuk '
+            'menjalankan semakan latar belakang terhadap saya untuk tujuan '
+            'permohonan sebagai rakan penghantar.'
+      ),
+      (
+        decl5,
+        onChanged5,
+        'Saya dengan ini mengisytiharkan bahawa semua maklumat, butiran '
+            'pengenalan diri, rekod lesen memandu, dan dokumen kenderaan yang '
+            'dikemukakan dalam permohonan ini adalah benar, tepat, dan terkini.'
+      ),
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('Declarations (Pengisytiharan)',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        for (final item in items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: CheckboxListTile(
+              value: item.$1,
+              onChanged: (v) => item.$2(v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              title: Text(item.$3, style: const TextStyle(fontSize: 13.5)),
+            ),
+          ),
+        const SizedBox(height: 18),
+        FilledButton(
+          onPressed: onNext,
+          child: const Text('Next'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(onPressed: onBack, child: const Text('Back')),
+      ],
+    );
+  }
+}
+
+/// Consents (Persetujuan) — 4 checkboxes, each with a tappable link to
+/// its policy page, all required before OTP is sent.
+class _ConsentsStep extends StatelessWidget {
+  const _ConsentsStep({
+    required this.consent1,
+    required this.consent2,
+    required this.consent3,
+    required this.consent4,
+    required this.onChanged1,
+    required this.onChanged2,
+    required this.onChanged3,
+    required this.onChanged4,
+    required this.privacyNoticeRecognizer,
+    required this.deliveryTermsRecognizer,
+    required this.paymentTermsRecognizer,
+    required this.codeOfConductRecognizer,
+    required this.onNext,
+    required this.onBack,
+    this.isSubmitting = false,
+    this.error,
+  });
+
+  final bool consent1, consent2, consent3, consent4;
+  final ValueChanged<bool> onChanged1, onChanged2, onChanged3, onChanged4;
+  final TapGestureRecognizer privacyNoticeRecognizer;
+  final TapGestureRecognizer deliveryTermsRecognizer;
+  final TapGestureRecognizer paymentTermsRecognizer;
+  final TapGestureRecognizer codeOfConductRecognizer;
+  final VoidCallback? onNext;
+  final VoidCallback onBack;
+  final bool isSubmitting;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final items = [
+      (consent1, onChanged1, 'Notis Privasi', privacyNoticeRecognizer),
+      (consent2, onChanged2, 'Terms of Service - Transport, Delivery and Logistics', deliveryTermsRecognizer),
+      (consent3, onChanged3, 'Terms of Service - Payment and Rewards', paymentTermsRecognizer),
+      (consent4, onChanged4, 'Code of Conduct - Driver and Delivery Partner Guidelines', codeOfConductRecognizer),
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('Consents (Persetujuan)',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        const Text(
+          'Saya mengakui bahawa dengan mengemukakan permohonan saya, saya '
+          'telah membaca, memahami dan bersetuju dengan:',
+          style: TextStyle(fontSize: 13.5),
+        ),
+        const SizedBox(height: 12),
+        for (final item in items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: CheckboxListTile(
+              value: item.$1,
+              onChanged: (v) => item.$2(v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              title: RichText(
+                text: TextSpan(
+                  style: TextStyle(fontSize: 13.5, color: scheme.onSurface),
+                  children: [
+                    TextSpan(
+                      text: item.$3,
+                      style: TextStyle(color: scheme.primary, decoration: TextDecoration.underline),
+                      recognizer: item.$4,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (error != null) ...[
+          const SizedBox(height: 12),
+          Text(error!, style: const TextStyle(color: Colors.red)),
+        ],
+        const SizedBox(height: 18),
+        FilledButton(
+          onPressed: onNext,
+          child: isSubmitting
+              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Continue'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(onPressed: onBack, child: const Text('Back')),
+      ],
     );
   }
 }

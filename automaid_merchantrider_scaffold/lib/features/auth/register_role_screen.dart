@@ -1,6 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'register_rider_screen.dart';
 import 'register_merchant_screen.dart';
+import '../../core/widgets/need_help_button.dart';
 
 enum _Role { rider, merchant }
 
@@ -20,8 +23,31 @@ class _RegisterRoleScreenState extends State<RegisterRoleScreen> {
   _Role _role = _Role.rider;
   String? _riderType; // 'gig' | 'staff'
   String? _merchantType; // 'outlet_partner' | 'automaid_outlet'
+  bool _agreedToTerms = false;
 
-  bool get _canContinue => _role == _Role.rider ? _riderType != null : _merchantType != null;
+  // Note: the domain used here is lbunlimitedwash.com, matching every
+  // other policy link already in this app/the customer app — the
+  // domain as given in this request appeared to be a typo (missing
+  // the 's' in "wash").
+  late final _privacyNoticeRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openLink('https://lbunlimitedwash.com/policy/privacy_notice.html');
+  late final _termsRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openLink('https://lbunlimitedwash.com/policy/general_terms.html');
+
+  @override
+  void dispose() {
+    _privacyNoticeRecognizer.dispose();
+    _termsRecognizer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
+
+  bool get _canContinue =>
+      (_role == _Role.rider ? _riderType != null : _merchantType != null) && _agreedToTerms;
 
   void _continue() {
     if (!_canContinue) return;
@@ -39,12 +65,25 @@ class _RegisterRoleScreenState extends State<RegisterRoleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Step 1/3')),
+      appBar: AppBar(
+        title: const Text('Step 1/3'),
+        actions: const [NeedHelpButton()],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Scrollable — this screen now has enough content (role
+            // cards, type options, consent text) that it could overflow
+            // on shorter devices otherwise, the same class of bug fixed
+            // on the onboarding screen previously. The Next button below
+            // stays pinned outside the scroll area.
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
             Text('Register to Get Started', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 4),
             const Text('Join our team and unlock new opportunities.'),
@@ -55,7 +94,7 @@ class _RegisterRoleScreenState extends State<RegisterRoleScreen> {
               children: [
                 Expanded(
                   child: _RoleCard(
-                    icon: Icons.delivery_dining,
+                    imageAsset: 'assets/images/mascot_rider.png',
                     label: "I'm a rider",
                     selected: _role == _Role.rider,
                     onTap: () => setState(() => _role = _Role.rider),
@@ -64,8 +103,8 @@ class _RegisterRoleScreenState extends State<RegisterRoleScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _RoleCard(
-                    icon: Icons.storefront,
-                    label: "I'm a merchant/partner",
+                    imageAsset: 'assets/images/mascot_merchant.png',
+                    label: "I'm a merchant / laundry assistant",
                     selected: _role == _Role.merchant,
                     onTap: () => setState(() => _role = _Role.merchant),
                   ),
@@ -100,7 +139,50 @@ class _RegisterRoleScreenState extends State<RegisterRoleScreen> {
                 onTap: () => setState(() => _merchantType = 'automaid_outlet'),
               ),
             ],
-            const Spacer(),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: _agreedToTerms,
+                  onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: RichText(
+                      text: TextSpan(
+                        style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.4),
+                        children: [
+                          const TextSpan(
+                            text: 'By proceeding, I agree that LB Pickup and Delivery can '
+                                'collect, use and disclose the information provided by me '
+                                'in accordance with the ',
+                          ),
+                          TextSpan(
+                            text: 'Privacy Notice',
+                            style: const TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                            recognizer: _privacyNoticeRecognizer,
+                          ),
+                          const TextSpan(text: ' and I fully comply with '),
+                          TextSpan(
+                            text: 'Terms & Conditions',
+                            style: const TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                            recognizer: _termsRecognizer,
+                          ),
+                          const TextSpan(text: ' which I have read and understand.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -116,8 +198,8 @@ class _RegisterRoleScreenState extends State<RegisterRoleScreen> {
 }
 
 class _RoleCard extends StatelessWidget {
-  const _RoleCard({required this.icon, required this.label, required this.selected, required this.onTap});
-  final IconData icon;
+  const _RoleCard({required this.imageAsset, required this.label, required this.selected, required this.onTap});
+  final String imageAsset;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -131,11 +213,20 @@ class _RoleCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 36),
-              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  imageAsset,
+                  height: 72,
+                  width: 72,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 10),
               Text(label, textAlign: TextAlign.center),
             ],
           ),

@@ -9,11 +9,13 @@ class FormSectionCard extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
+    this.description,
     required this.children,
   });
 
   final IconData icon;
   final String title;
+  final String? description;
   final List<Widget> children;
 
   @override
@@ -45,6 +47,16 @@ class FormSectionCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (description != null) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 42),
+                child: Text(
+                  description!,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             for (int i = 0; i < children.length; i++) ...[
               children[i],
