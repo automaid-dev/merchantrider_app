@@ -202,12 +202,15 @@ class AuthRepository {
     String? bankName,
     String? bankNo,
     // Verification documents — same single-request convention as rider
-    // registration. SSM certificate is optional per the backend
-    // validation rule (image|mimes, no "required"), IC front/back always
-    // collected per the flow spec's step 3.
+    // registration. Front-only IC now (matches the guided per-document
+    // upload flow — back-side still accepted by the backend if ever
+    // sent, just no longer collected here). Business License (ssm_cert)
+    // is now required client-side as part of that same guided flow,
+    // even though the backend validation rule itself has no
+    // `required` — same reasoning as rider's front-only restructure.
     required String icFrontPath,
-    required String icBackPath,
-    String? ssmCertPath,
+    String? icBackPath,
+    required String ssmCertPath,
   }) async {
     final formData = FormData.fromMap({
       'name': name,
@@ -236,8 +239,8 @@ class AuthRepository {
       'latitude': latitude,
       'longitude': longitude,
       'ic_front': await MultipartFile.fromFile(icFrontPath),
-      'ic_back': await MultipartFile.fromFile(icBackPath),
-      if (ssmCertPath != null) 'ssm_cert': await MultipartFile.fromFile(ssmCertPath),
+      if (icBackPath != null) 'ic_back': await MultipartFile.fromFile(icBackPath),
+      'ssm_cert': await MultipartFile.fromFile(ssmCertPath),
     }, ListFormat.multiCompatible); // service_categories needs key[]=value PHP array syntax, not Dio's default
     // Longer timeout than the default 15s — see the matching comment on
     // registerRider() above. This is exactly what caused the "email
