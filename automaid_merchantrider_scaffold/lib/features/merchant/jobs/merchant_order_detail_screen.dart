@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/widgets/order_status_timeline.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../providers/merchant_providers.dart';
 
 /// Full order detail for a merchant's job — wraps POST /merchant/order/detail.
@@ -74,7 +75,7 @@ class _MerchantOrderDetailScreenState extends ConsumerState<MerchantOrderDetailS
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
+              ? ErrorStateView(message: _error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(

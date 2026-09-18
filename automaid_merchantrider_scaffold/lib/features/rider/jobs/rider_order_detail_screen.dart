@@ -9,6 +9,7 @@ import '../../../core/auth/auth_providers.dart';
 import '../../../core/models/assign_job_model.dart';
 import '../../../core/widgets/order_status_timeline.dart';
 import '../../../core/widgets/navigate_button.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../providers/rider_providers.dart';
 
 /// Full order detail for a rider's job, with delivery-proof photo upload
@@ -188,7 +189,7 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
+              ? ErrorStateView(message: _error!, onRetry: _load)
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [

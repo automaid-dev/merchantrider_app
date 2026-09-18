@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../providers/merchant_providers.dart';
+import '../../../core/widgets/error_state_view.dart';
 import 'merchant_profile_edit_screen.dart';
 import 'merchant_settlement_list_screen.dart';
 
@@ -74,7 +75,7 @@ class _MerchantProfileScreenState extends ConsumerState<MerchantProfileScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
+              ? ErrorStateView(message: _error!, onRetry: _load)
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
