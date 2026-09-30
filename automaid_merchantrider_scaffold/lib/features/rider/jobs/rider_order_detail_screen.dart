@@ -10,6 +10,7 @@ import '../../../core/models/assign_job_model.dart';
 import '../../../core/widgets/order_status_timeline.dart';
 import '../../../core/widgets/navigate_button.dart';
 import '../../../core/widgets/error_state_view.dart';
+import '../../../core/widgets/whatsapp_contacts.dart';
 import '../providers/rider_providers.dart';
 
 /// Full order detail for a rider's job, with delivery-proof photo upload
@@ -150,6 +151,53 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
     );
   }
 
+  /// "Booking - Wash & Fold" / "Booking - Dry Cleaning". Prefers the
+  /// backend's service_type, falling back to the same convention the
+  /// backend uses (service_category_id or dry-clean items present ==
+  /// dry cleaning).
+  String get _typeLabel {
+    final order = _order;
+    final raw = order?['order_type']?.toString();
+    if (raw == null || raw.isEmpty) return '-';
+    final base = raw
+        .split('_')
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+    if (raw != 'booking') return base;
+    String? service = order?['service_type']?.toString();
+    if (service == null || service.isEmpty) {
+      final Object? items = _booking?['items'];
+      final bool hasItems = items is List ? items.isNotEmpty : (items != null && items.toString().isNotEmpty);
+      service = (_booking?['service_category_id'] != null || hasItems) ? 'Dry Cleaning' : 'Wash & Fold';
+    }
+    return '$base - $service';
+  }
+
+  String? _nonEmpty(dynamic v) {
+    final s = v?.toString();
+    return (s == null || s.isEmpty) ? null : s;
+  }
+
+  Widget _buildAddresses() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AddressBlock(
+          icon: Icons.home_outlined,
+          label: 'Customer address',
+          address: _nonEmpty(_order?['customer_address']),
+        ),
+        _AddressBlock(
+          icon: Icons.storefront_outlined,
+          label: 'Merchant address',
+          name: _nonEmpty(_order?['merchant_name']),
+          address: _nonEmpty(_order?['merchant_address']),
+          emptyText: 'Outlet not assigned yet',
+        ),
+      ],
+    );
+  }
+
   int get _assignId => widget.isComplete ? (_data?['id'] as int? ?? widget.id) : widget.id;
 
   Future<void> _pickPhoto() async {
@@ -195,12 +243,20 @@ class _RiderOrderDetailScreenState extends ConsumerState<RiderOrderDetailScreen>
                   children: [
                     Text('Order ID: ${_data?['order_id'] ?? _data?['id'] ?? '-'}'),
                     Text('Status code: ${_data?['code'] ?? '-'}'),
+                    Text('Type: $_typeLabel'),
                     if (_commissionTransaction != null) ...[
                       const SizedBox(height: 8),
                       _CommissionStatusBadge(transaction: _commissionTransaction!),
                     ],
                     const SizedBox(height: 12),
+                    _buildAddresses(),
+                    const SizedBox(height: 8),
                     _buildNavigateButtons(),
+                    // Customer + merchant (while the order is active) + support.
+                    if ((_order?['contacts'] as List<dynamic>? ?? const []).isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      WhatsAppContacts(contacts: _order?['contacts'] as List<dynamic>?),
+                    ],
                     const Divider(height: 32),
                     if (_order?['rider_order_statuses'] != null) ...[
                       Text('Order status', style: Theme.of(context).textTheme.titleMedium),
@@ -350,6 +406,52 @@ class _PickupPhotoCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(note!, style: const TextStyle(fontSize: 13)),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Label on top, address wrapped underneath — customer / merchant
+/// address on the order detail screen.
+class _AddressBlock extends StatelessWidget {
+  const _AddressBlock({
+    required this.icon,
+    required this.label,
+    this.name,
+    this.address,
+    this.emptyText = '-',
+  });
+
+  final IconData icon;
+  final String label;
+  final String? name;
+  final String? address;
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                if (name != null && name!.isNotEmpty)
+                  Text(name!, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  address ?? emptyText,
+                  style: TextStyle(color: address == null ? Colors.grey : null),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

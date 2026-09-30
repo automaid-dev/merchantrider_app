@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/widgets/order_status_timeline.dart';
 import '../../../core/widgets/error_state_view.dart';
+import '../../../core/widgets/whatsapp_contacts.dart';
 import '../providers/merchant_providers.dart';
 
 /// Full order detail for a merchant's job — wraps POST /merchant/order/detail.
@@ -87,6 +88,11 @@ class _MerchantOrderDetailScreenState extends ConsumerState<MerchantOrderDetailS
                       if (_commissionTransaction != null) ...[
                         const SizedBox(height: 8),
                         _CommissionStatusBadge(transaction: _commissionTransaction!),
+                      ],
+                      // Rider (while the order is active) + AutoMaid support.
+                      if ((_order?['contacts'] as List<dynamic>? ?? const []).isNotEmpty) ...[
+                        const Divider(height: 32),
+                        WhatsAppContacts(contacts: _order?['contacts'] as List<dynamic>?),
                       ],
                       if (_order?['merchant_order_statuses'] != null) ...[
                         const Divider(height: 32),
