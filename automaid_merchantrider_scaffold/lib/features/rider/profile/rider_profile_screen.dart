@@ -5,6 +5,7 @@ import '../providers/rider_providers.dart';
 import '../../../core/widgets/error_state_view.dart';
 import 'rider_profile_edit_screen.dart';
 import 'rider_settlement_list_screen.dart';
+import '../../../core/widgets/delete_account_screen.dart';
 
 /// Wraps POST /rider/profile (RiderProfileController::profile), which
 /// eager-loads wallet.transactions and activities. Tap the edit icon to
@@ -168,6 +169,17 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                           ),
                         );
                       }),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    Center(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.person_remove_outlined),
+                        label: const Text('Delete account'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
+                        onPressed: () => Navigator.of(context)
+                            .push(MaterialPageRoute(builder: (_) => const DeleteAccountScreen())),
+                      ),
+                    ),
                   ],
                 ),
     );

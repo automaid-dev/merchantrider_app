@@ -5,6 +5,7 @@ import '../providers/merchant_providers.dart';
 import '../../../core/widgets/error_state_view.dart';
 import 'merchant_profile_edit_screen.dart';
 import 'merchant_settlement_list_screen.dart';
+import '../../../core/widgets/delete_account_screen.dart';
 
 /// Wraps POST /merchant/profile (Api/Merchant/ProfileController::profile), which
 /// eager-loads wallet.transactions and activities. Tap the edit icon to
@@ -168,6 +169,17 @@ class _MerchantProfileScreenState extends ConsumerState<MerchantProfileScreen> {
                           ),
                         );
                       }),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    Center(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.person_remove_outlined),
+                        label: const Text('Delete account'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
+                        onPressed: () => Navigator.of(context)
+                            .push(MaterialPageRoute(builder: (_) => const DeleteAccountScreen())),
+                      ),
+                    ),
                   ],
                 ),
     );

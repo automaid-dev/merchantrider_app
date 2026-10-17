@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/auth_providers.dart';
 import '../../core/models/app_user.dart';
 import '../../core/widgets/confirm_dialog.dart';
+import '../../core/widgets/delete_account_screen.dart';
 
 /// Shown when the account is authenticated (OTP verified) but the
 /// Rider/Merchant entity itself hasn't been approved by admin yet —
@@ -51,6 +52,13 @@ class PendingApprovalScreen extends ConsumerWidget {
                   }
                 },
                 child: const Text('Logout'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const DeleteAccountScreen())),
+                style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
+                child: const Text('Delete account'),
               ),
             ],
           ),
