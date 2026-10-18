@@ -7,6 +7,7 @@ import '../models/app_user.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_role_screen.dart';
 import '../../features/auth/pending_approval_screen.dart';
+import '../../features/auth/resubmit_documents_screen.dart';
 import '../../features/rider/home/rider_home_screen.dart';
 import '../../features/merchant/home/merchant_home_screen.dart';
 
@@ -15,7 +16,8 @@ import '../../features/merchant/home/merchant_home_screen.dart';
 /// /rider/home and a merchant (wash outlet) account to /merchant/home,
 /// based on the Spatie role on the logged-in user. An account whose
 /// entity is still awaiting admin approval (User.status == 'onboarding')
-/// is sent to /pending instead of either dashboard.
+/// is sent to /pending instead of either dashboard, and one whose
+/// registration admin rejected (User.status == 'rejected') to /resubmit.
 final routerProvider = Provider<GoRouter>((ref) {
   // Deliberately NOT `ref.watch(authControllerProvider)` here — this
   // builder should only ever run once, producing a single GoRouter
@@ -59,7 +61,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         return state.matchedLocation == '/pending' ? null : '/pending';
       }
 
-      if (preAuth || state.matchedLocation == '/pending') {
+      // Admin sent the registration back — show what to re-upload.
+      if (authState.user?.isRejected == true) {
+        return state.matchedLocation == '/resubmit' ? null : '/resubmit';
+      }
+
+      if (preAuth || state.matchedLocation == '/pending' || state.matchedLocation == '/resubmit') {
         return role == UserRole.rider ? '/rider/home' : '/merchant/home';
       }
       return null;
@@ -68,6 +75,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterRoleScreen()),
       GoRoute(path: '/pending', builder: (context, state) => const PendingApprovalScreen()),
+      GoRoute(path: '/resubmit', builder: (context, state) => const ResubmitDocumentsScreen()),
       GoRoute(
         path: '/rider/home',
         builder: (context, state) => const RiderHomeScreen(),

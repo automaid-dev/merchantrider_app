@@ -113,6 +113,13 @@ class AuthController extends StateNotifier<AuthState> {
     state = const AuthState.unauthenticated();
   }
 
+  /// Replace the signed-in user's details (e.g. after resubmitting
+  /// documents the status changes rejected → onboarding) so the router
+  /// moves to the right screen.
+  void updateUser(AppUser user) {
+    state = AuthState.authenticated(user);
+  }
+
   /// Called by ApiClient's onUnauthorized callback when any request gets a 401.
   void forceLogout() {
     TokenStorage.instance.clear();
